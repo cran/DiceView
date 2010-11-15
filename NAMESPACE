@@ -1,0 +1,11 @@
+import("graphics")
+import("DiceKriging","DiceEval")
+## importFrom("graphics", plot)
+
+export(sectionview.km,
+       sectionview3d.km,
+       sectionview.list,
+       sectionview3d.list,
+       sectionview,
+       sectionview3d)
+
