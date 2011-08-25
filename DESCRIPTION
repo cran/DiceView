@@ -1,14 +1,14 @@
 Package: DiceView
-Title: Plot methods for computer experiments design and models.
-Version: 1.0-0
-Date: 2010-11-15
+Title: Plot methods for computer experiments design and surrogate.
+Version: 1.1-0
+Date: 2011-08-25
 Author: Yann Richet, Yves Deville, Clement Chevalier
 Maintainer: Yann Richet <yann.richet@irsn.fr>
-Description: View 2D/3D sections of computer experiments designs and
-        kriging models.
+Description: View 2D/3D sections or contours of computer experiments
+        designs and surrogates.
 Depends: methods, DiceKriging, DiceEval, rgl
 License: GPL-3
 URL: http://www.dice-consortium.fr/
 Repository: CRAN
-Date/Publication: 2010-11-26 12:49:57
-Packaged: 2010-11-26 10:40:19 UTC; yves
+Date/Publication: 2011-08-25 12:16:31
+Packaged: 2011-08-25 09:24:11 UTC; richet

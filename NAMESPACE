@@ -4,8 +4,11 @@ import("DiceKriging","DiceEval")
 
 export(sectionview.km,
        sectionview3d.km,
+       contourview.km,
        sectionview.list,
        sectionview3d.list,
+       contourview.list,
        sectionview,
-       sectionview3d)
+       sectionview3d,
+       contourview)
 

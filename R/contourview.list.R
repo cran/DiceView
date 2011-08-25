@@ -1,34 +1,39 @@
-sectionview3d.list <- function(model, center = NULL,
-        axis = NULL, npoints = 20,
+contourview.list <- function(model,
+        center = NULL,
+        npoints = 20,
         col_points = "red",
         col_surf = "blue",
-        col_needles = NA,
-        bg_blend = 5,
+        nlevels = 10,
+        bg_blend = 1,
+        mfrow = NULL,
         Xname = NULL, yname = NULL,
         Xscale = 1, yscale = 1,
-        ylim = NULL, title = NULL, ...) {
-    
-    require(rgl)
+        ylim = NULL, title = NULL,
+        ...) {
     
     D <- length(model$data$X)
+    
     if (D == 1) stop("for a model with dim 1, use 'sectionview'")
     
     if (is.null(center)) {
         if (D != 2) stop("Section center in 'section' required for >2-D model.")
     }
     
-    if (is.null(axis)) {
-        axis <- t(combn(D, 2))
-    } else {
-        ## added by YD for the vector case
-        axis <- matrix(axis, ncol = 2)
+    axis <- t(combn(D, 2))
+    
+    if (is.null(mfrow)) {
+        nc <- round(sqrt(nrow(axis)))
+        nl <- ceiling(nrow(axis)/nc)
+        mfrow <- c(nc, nl)
     }
+    if (mfrow[1] != 1 || mfrow[2] != 1)
+        par(mfrow = mfrow)
     
     ## Changed by YD: a vector
     ## if (is.null(dim(npoints))) { npoints <- rep(npoints,D) }
     npoints <- rep(npoints, length.out = D)
     
-    ## apply scaling factor(s)
+    ##  apply scaling factor
     X_doe <- Xscale * model$data$X
     n <- dim(X_doe)[1]
     y_doe <- yscale * model$data$Y
@@ -56,6 +61,7 @@ sectionview3d.list <- function(model, center = NULL,
     ## try to find a good formatted value 'fcenter' for 'center'
     fcenter <- tryFormat(x = center, drx = drx)
     
+    ## Each 'id' will produce a RGL plot
     for (id in 1:dim(axis)[1]) {
         
         d <- axis[id, ]
@@ -100,62 +106,38 @@ sectionview3d.list <- function(model, center = NULL,
             title_d <-  title
         }
         
-        open3d()
-        
-        plot3d(x = x[,1], y = x[,2], z = y_mean,
-                xlab = Xname[d[1]], ylab = Xname[d[2]], zlab = yname,
-                xlim = xlim, ylim = ylim, zlim = zlim,
-                type = "n", main = title_d,
-                col = col_surf,
+        ## plot mean surface two steps required to use alpha = 
+        contour(x = xd1,y = xd2, z = yd_mean,
+                xlab = Xname[d[1]], ylab = Xname[d[2]], 
+                xlim = xlim, ylim = ylim, zlim = zlim, 
+                main = title_d,
+                col = col_surf, 
+                nlevels = nlevels,
+                levels = pretty(y_mean,nlevels),
                 ...)
         
-        surface3d(x = xd1, y = xd2, z = yd_mean,
-                col = col_surf, alpha = 0.5, box = FALSE)
-        
-        ## fade colors according to alpha
+        ## fading colors for points
         if (D>2) {
             
             xrel <- scale(x = as.matrix(X_doe),
                     center = center,
-                    scale = rx["max", ] - rx["min", ])
+                    scale = drx)            
             
             alpha <- apply(X = xrel[ , ind.nonfix, drop = FALSE],
                     MARGIN = 1,
                     FUN = function(x) (1 - sqrt(sum(x^2)/D))^bg_blend) 
             
-            ##    for (i in 1:n) {
-            ##         xrel <- data.frame(((X_doe[i, ] - center) / (rx["max", ] - rx["min", ])))
-            ##         xrel[d[1]] <- NULL
-            ##         xrel[d[2]] <- NULL
-            ##         alpha[i] <-  (1 - sqrt(sum(xrel^2)/(D))) ^ bg_blend
-            ##       }
-            
         } else {
             alpha <- rep(1, n)
         }
         
-        
-        if (!is.na(col_needles)) {
-            
-            col0 <- fade(color = col_needles, alpha = alpha)
-            plot3d(x = X_doe[ , d[1]], y = X_doe[ , d[2]], z = y_doe,
-                    type = "h",
-                    col = col0,              
-                    alpha = alpha,
-                    pch = 20,
-                    box = FALSE,
-                    add = TRUE)
-            
-        }
-        
         col1 <- fade(color = col_points, alpha = alpha)
+        #cat("faded colors\n"); print(col1)
         
-        points3d(x = X_doe[ , d[1]], y = X_doe[ , d[2]], z = y_doe,
+        points(X_doe[,d],
                 col = col1,
-                alpha = alpha,
-                pch = 20,
-                box = FALSE)
+                ## col = rgb(1, 1-alpha, 1-alpha, alpha),
+                pch = 20)
         
     }
-    
 }

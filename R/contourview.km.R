@@ -1,19 +1,15 @@
-sectionview3d.km <- function(model, type = "UK",
+contourview.km <- function(model, type = "UK",
         center = NULL,
-        axis = NULL,
         npoints = 20,
         col_points = "red",
         col_surf = "blue",
-        col_needles = NA,
-        conf_lev = c(0.95),
-        conf_blend = NULL,
-        bg_blend = 5,
+        nlevels = 10,
+        bg_blend = 1,
+        mfrow = NULL,
         Xname = NULL, yname = NULL,
         Xscale = 1, yscale = 1,
         ylim = NULL, title = NULL,
         ...) {
-    
-    require(rgl)
     
     D <- model@d
     
@@ -23,23 +19,19 @@ sectionview3d.km <- function(model, type = "UK",
         if (D != 2) stop("Section center in 'section' required for >2-D model.")
     }
     
-    if (is.null(axis)) {
-        axis <- t(combn(D, 2))
-    } else {
-        ## added by YD for the vector case
-        axis <- matrix(axis, ncol = 2)
+    axis <- t(combn(D, 2))
+    
+    if (is.null(mfrow)) {
+        nc <- round(sqrt(nrow(axis)))
+        nl <- ceiling(nrow(axis)/nc)
+        mfrow <- c(nc, nl)
     }
+    if (mfrow[1] != 1 || mfrow[2] != 1)
+        par(mfrow = mfrow)
     
     ## Changed by YD: a vector
     ## if (is.null(dim(npoints))) { npoints <- rep(npoints,D) }
     npoints <- rep(npoints, length.out = D)
-    
-    if (is.null(conf_blend) ||
-            length(conf_blend) != length(conf_lev)) {
-        
-        conf_blend <- rep(0.5/length(conf_lev), length(conf_lev))
-        
-    }
     
     ##  apply scaling factor
     X_doe <- Xscale * model@X
@@ -84,6 +76,7 @@ sectionview3d.km <- function(model, type = "UK",
     for (id in 1:dim(axis)[1]) {
         
         d <- axis[id,]
+        
         npoints_all <- npoints[d[1]]*npoints[d[2]]
         
         ## ind.nonfix flags the non fixed dims
@@ -132,101 +125,45 @@ sectionview3d.km <- function(model, type = "UK",
             title_d <-  title
         }
         
-        open3d()
-        
         ## plot mean surface two steps required to use alpha = 
-        plot3d(x = x[ , 1], y = x[ , 2], z = y_mean,
-                xlab = Xname[d[1]], ylab = Xname[d[2]], zlab = yname,
-                xlim = xlim, ylim = ylim, zlim = zlim, type = "n",
+        contour(x = xd1,y = xd2, z = yd_mean,
+                xlab = Xname[d[1]], ylab = Xname[d[2]], 
+                xlim = xlim, ylim = ylim, zlim = zlim, 
                 main = title_d,
-                col = col_surf,
+                col = col_surf, 
+                nlevels = nlevels,
+                levels = pretty(y_mean,nlevels),
                 ...)
         
-        surface3d(x = xd1,y = xd2, z = yd_mean,
-                col = col_surf, alpha = 0.5,
-                box = FALSE)
+        ## fade the contour according to kriging sd
+        col_surf_rgba = col2rgb("white")
+        col_sd = rgb(col_surf_rgba[1]/255,col_surf_rgba[2]/255,col_surf_rgba[3]/255,seq(from=0,to=1,length=20))
+        image(x = xd1,y = xd2, z = yd_sd,
+                col = col_sd, breaks=seq(from=min(yd_sd),to=max(yd_sd),length=length(col_sd)+1),
+                add=TRUE)
         
-        ## add  "confidence surfaces"
-        for (p in 1:length(conf_lev)) {
-            
-            colp <- translude(col_surf, alpha = conf_blend[p])
-            
-            surface3d(x = xd1,
-                    y = xd2,
-                    z = qnorm((1+conf_lev[p])/2, y_mean, y_sd),
-                    col = colp,
-                    alpha = conf_blend[p],
-                    box = FALSE)
-            
-            surface3d(x = xd1,
-                    y = xd2,
-                    z = qnorm((1-conf_lev[p])/2, y_mean, y_sd),
-                    col = colp,
-                    alpha = conf_blend[p],
-                    box = FALSE)
-            
-        }
-        
-        ## fade colors according to alpha
+        ## fading colors for points
         if (D>2) {
             
             xrel <- scale(x = as.matrix(X_doe),
                     center = center,
-                    scale = drx)
+                    scale = drx)            
             
             alpha <- apply(X = xrel[ , ind.nonfix, drop = FALSE],
                     MARGIN = 1,
                     FUN = function(x) (1 - sqrt(sum(x^2)/D))^bg_blend) 
             
-            ##    for (i in 1:n) {
-            ##         xrel <- data.frame(((X_doe[i, ] - center) / (rx["max", ] - rx["min", ])))
-            ##         xrel[d[1]] <- NULL
-            ##         xrel[d[2]] <- NULL
-            ##         alpha[i] <-  (1 - sqrt(sum(xrel^2)/(D))) ^ bg_blend
-            ##       }
-            
         } else {
             alpha <- rep(1, n)
         }
         
-        if (!model@noise.flag) {
-            
-            ## [YD] add needles, if wanted
-            if (!is.na(col_needles)) {
-                
-                col0 <- fade(color = col_needles, alpha = alpha)
-                plot3d(x = X_doe[ , d[1]], y = X_doe[ , d[2]], z = y_doe,
-                        type = "h",
-                        col = col0,              
-                        alpha = alpha,
-                        add = TRUE,
-                        box = FALSE)
-                
-            }
-            
-            col1 <- fade(color = col_points, alpha = alpha)
-            
-            points3d(x = X_doe[ , d[1]], y = X_doe[ , d[2]], z = y_doe,
-                    col = col1,
-                    alpha = alpha,
-                    pch = 20, box = FALSE)
-            
-        }
+        col1 <- fade(color = col_points, alpha = alpha)
+        #cat("faded colors\n"); print(col1)
         
-        for (p in 1:length(conf_lev)) {
-            
-            for (i in 1:n) {
-                
-                lines3d(x = c(X_doe[i, d[1]], X_doe[i, d[1]]),
-                        y = c(X_doe[i, d[2]], X_doe[i, d[2]]),
-                        z = c(qnorm((1+conf_lev[p])/2, y_doe[i], sdy_doe[i]),
-                                qnorm((1-conf_lev[p])/2, y_doe[i], sdy_doe[i])),
-                        col = rgb(red = 1, green = 1-alpha[i], blue = 1-alpha[i],
-                                alpha = alpha[i]*conf_blend[p]),
-                        alpha = alpha[i]*conf_blend[p],
-                        lwd = 5, lend = 1, box = FALSE)
-            }
-            
-        }
+        points(X_doe[,d],
+                col = col1,
+                ## col = rgb(1, 1-alpha, 1-alpha, alpha),
+                pch = 20)
+        
     }
 }
