@@ -1,3 +1,44 @@
+#' Plot section views of a kriging model, including design points
+#' @description Plot one section view per dimension of a kriging model thus providing a better understanding of the model behaviour including uncertainty.
+#' @param model an object of class "km".
+#' @param type the kriging type to use for model prediction.
+#' @param center optional coordinates (as a list or data frame) of the center of the section  view if the model's dimension is > 1.
+#' @param axis optional matrix of 1-axis combinations to plot, one by row. The value \code{NULL} leads to all possible combinations i.e. \code{1:D}.
+#' @param npoints an optional number of points to discretize plot of response surface and uncertainties.
+#' @param col_points color of points.
+#' @param col_surf color for the section.
+#' @param conf_lev an optional list of confidence interval values to display.
+#' @param conf_blend an optional factor of alpha (color channel) blending used to plot confidence intervals.     
+#' @param bg_blend an optional factor of alpha (color channel) blending used to plot design  points outside from this section.
+#' @param mfrow an optional list to force \code{par(mfrow = ...)} call. The default value  \code{NULL} is automatically set for compact view.
+#' @param xlim an optional list to force x range for all plots. The default value \code{NULL} is automatically set to include all design points.
+#' @param ylim an optional list to force y range for all plots. The default value \code{NULL} is automatically set to include all design points (and their 1-99 percentiles).
+#' @param Xname an optional list of string to overload names for X. 
+#' @param yname an optional string to overload name for y. 
+#' @param Xscale an optional factor to scale X. 
+#' @param yscale an optional factor to scale y. 
+#' @param title an optional overload of main title.
+#' @param add to print graphics on an existing window.
+#' @param \dots further arguments passed to the first call of \code{plot}. 
+#' @details A multiple rows/columns plot is produced. Experimental points are plotted with fading colors. Points that fall in the specified section (if any) have the color specified \code{col_points} while points far away from the center have shaded versions of the same color. The amount of fading is determined using the Euclidean distance between the plotted point and \code{center}.
+#' @author Yann Richet, IRSN
+#' @seealso The function \code{\link{sectionview3d.km}} produces a 3D version. For more information on the \code{km} class, see the \code{\link[DiceKriging]{km}} function in the \pkg{DiceKriging} package. 
+#' @keywords models
+#' @examples 
+#' ## A 2D example - Branin-Hoo function
+#' ## a 16-points factorial design, and the corresponding response
+#' d <- 2; n <- 16
+#' design.fact <- expand.grid(seq(0, 1, length = 4), seq(0, 1, length = 4))
+#' design.fact <- data.frame(design.fact); names(design.fact)<-c("x1", "x2")
+#' y <- branin(design.fact) 
+#' 
+#' ## kriging model 1 : matern5_2 covariance structure, no trend, no nugget effect
+#' m1 <- km(design = design.fact, response = y)
+#' 
+#' sectionview(m1, center = c(.333, .333))
+#' 
+#' ## Display reference function
+#' sectionview(branin,dim=2,center=c(.333, .333),add=TRUE,col='red')
 sectionview.km <- function(model, type = "UK",
                            center = NULL, axis = NULL,
                            npoints = 100,
@@ -42,7 +83,7 @@ sectionview.km <- function(model, type = "UK",
             close.screen( all.screens = TRUE )
             split.screen(figs = mfrow)
         }
-        .split.screen.lim <<- matrix(NaN,ncol=4,nrow=D) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
+        assign(".split.screen.lim",matrix(NaN,ncol=4,nrow=D),envir=DiceView.env) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
     }
     
     ## apply scaling factor
@@ -114,13 +155,14 @@ sectionview.km <- function(model, type = "UK",
         
         if (isTRUE(add)) {
             # re-use global settings for limits of this screen
+            .split.screen.lim = get(x=".split.screen.lim",envir=DiceView.env)
             xlim <- c(.split.screen.lim[d,1],.split.screen.lim[d,2])
             ylim <- c(.split.screen.lim[d,3],.split.screen.lim[d,4])
             if (D>1) {
                 plot(xd, y_mean,
                      type = "l", lty = 3,
                      xlim = xlim, ylim = ylim,
-                     col = col_surf,
+                     col = col_surf, xlab="", ylab="",
                      ...)
             } else { # not using screen(), so need for a non reset plotting method
                 lines(xd, y_mean,
@@ -130,7 +172,7 @@ sectionview.km <- function(model, type = "UK",
                       ...)
             }
         } else {
-            .split.screen.lim[d,] <<- matrix(c(xlim[1],xlim[2],ylim[1],ylim[2]),nrow=1)
+            eval(parse(text=paste(".split.screen.lim[",d,",] = matrix(c(",xlim[1],",",xlim[2],",",ylim[1],",",ylim[2],"),nrow=1)")),envir=DiceView.env)
             plot(xd, y_mean,
                  xlab = Xname[d], ylab = yname,
                  xlim = xlim, ylim = ylim, 

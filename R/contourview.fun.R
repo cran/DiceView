@@ -1,15 +1,46 @@
+#' Plot a contour view of a function.
+#' @param fun an object of class \code{"function"}.
+#' @param dim the dimension of fun arguments.
+#' @param center optional coordinates (as a list or data frame) of the center of the section view if the model's dimension is > 2.
+#' @param axis optional matrix of 2-axis combinations to plot, one by row. The value \code{NULL} leads to all possible combinations i.e. \code{choose(D, 2)}. 
+#' @param npoints an optional number of points to discretize plot of response surface and uncertainties.
+#' @param col color for the surface.
+#' @param filled use filled.contour
+#' @param nlevels number of contour levels to display.
+#' @param mfrow an optional list to force \code{par(mfrow = ...)} call. The default value  \code{NULL} is automatically set for compact view.
+#' @param xlim a list to give x range for all plots.
+#' @param ylim an optional list to force y range for all plots.
+#' @param Xname an optional list of string to overload names for X.
+#' @param yname an optional string to overload name for y.
+#' @param Xscale an optional factor to scale X.
+#' @param yscale an optional factor to scale y.
+#' @param title an optional overload of main title.
+#' @param add to print graphics on an existing window.
+#' @param \dots further arguments passed to the first call of \code{plot3d}.
+#' @details Experimental points are plotted with fading colors. Points that fall in the specified section (if any) have the color specified \code{col_points} while points far away from the center have shaded versions of the same color. The amount of fading is determined using the Euclidean distance between the plotted point and \code{center}. The variables chosen with their number are to be found in the \code{X} slot of the model. Thus they are 'spatial dimensions' but not 'trend variables'.
+#' @author Yann Richet, IRSN
+#' @seealso See \code{\link{sectionview3d.fun}}.
+#' @keywords models
+#' @examples
+#' ## A 2D example - Branin-Hoo function.
+#' contourview.fun(branin,dim = 2)
 contourview.fun <- function(fun, dim = ifelse(is.null(center),2,length(center)),
-        center = NULL, axis = NULL,
-        npoints = 20,
-        col = "blue",
-        nlevels = 10,
-        mfrow = NULL,
-        Xname = NULL, yname = NULL,
-        Xscale = 1, yscale = 1,
-        xlim = c(0,1), ylim = NULL,
-        title = NULL,
-        add = FALSE,
-        ...) {
+                            center = NULL, axis = NULL,
+                            npoints = 20,
+                            nlevels = 10,
+                            col = "blue",
+                            filled = FALSE,
+                            mfrow = NULL,
+                            Xname = NULL, yname = NULL,
+                            Xscale = 1, yscale = 1,
+                            xlim = c(0,1), ylim = NULL,
+                            title = NULL,
+                            add = FALSE,
+                            ...) {
+    
+    if (length(col)==1 && isTRUE(filled)) {
+        col.fill = col.levels(col,nlevels-1)
+    }
     
     D <- dim
     
@@ -20,7 +51,7 @@ contourview.fun <- function(fun, dim = ifelse(is.null(center),2,length(center)),
     }
     
     if (is.null(axis)) {
-    axis <- t(combn(D, 2))
+        axis <- t(combn(D, 2))
     } else {
         ## added by YD for the vector case
         axis <- matrix(axis, ncol = 2)
@@ -37,7 +68,7 @@ contourview.fun <- function(fun, dim = ifelse(is.null(center),2,length(center)),
             close.screen( all.screens = TRUE )
             split.screen(figs = mfrow)
         }
-        .split.screen.lim <<- matrix(NaN,ncol=4,nrow=D) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
+        assign(".split.screen.lim",matrix(NaN,ncol=4,nrow=D),envir=DiceView.env) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
     }
     
     ## Changed by YD: a vector
@@ -121,8 +152,11 @@ contourview.fun <- function(fun, dim = ifelse(is.null(center),2,length(center)),
         ## plot mean surface two steps required to use alpha = 
         if (isTRUE(add)) {
             # re-use global settings for limits of this screen
+            .split.screen.lim = get(x=".split.screen.lim",envir=DiceView.env)
             xlim <- c(.split.screen.lim[id,1],.split.screen.lim[id,2])
             ylim <- c(.split.screen.lim[id,3],.split.screen.lim[id,4])
+            if (isTRUE(filled))
+                warning("add=TRUE, so filled=TRUE disabled to not shadow previous plot")
             contour(x = xd1,y = xd2, z = yd,
                     xlim = xlim, ylim = ylim, zlim = zlim, 
                     col = col, 
@@ -131,19 +165,24 @@ contourview.fun <- function(fun, dim = ifelse(is.null(center),2,length(center)),
                     add=TRUE,
                     ...)
         } else {
-            .split.screen.lim[id,] <<- matrix(c(xlim[1],xlim[2],ylim[1],ylim[2]),nrow=1)
+            eval(parse(text=paste(".split.screen.lim[",id,",] = matrix(c(",xlim[1],",",xlim[2],",",ylim[1],",",ylim[2],"),nrow=1)")),envir=DiceView.env)
+            if (isTRUE(filled))
+                .filled.contour(x = xd1,y = xd2, z = yd,
+                                col = col.fill, 
+                                levels = pretty(y,nlevels))
             contour(x = xd1,y = xd2, z = yd,
-                xlab = Xname[d[1]], ylab = Xname[d[2]], 
-                xlim = xlim, ylim = ylim, zlim = zlim, 
-                main = title_d,
-                col = col, 
-                nlevels = nlevels,
-                levels = pretty(y,nlevels),
-                ...)
+                    xlab = Xname[d[1]], ylab = Xname[d[2]], 
+                    xlim = xlim, ylim = ylim, zlim = zlim, 
+                    main = title_d,
+                    col = col, 
+                    nlevels = nlevels,
+                    levels = pretty(y,nlevels),
+                    add=isTRUE(filled),
+                    ...)
             if(D>2) {
-                    abline(v=center[d[1]],col='black',lty=2)
-                    abline(h=center[d[2]],col='black',lty=2)
-                }
+                abline(v=center[d[1]],col='black',lty=2)
+                abline(h=center[d[2]],col='black',lty=2)
+            }
         }
     }
 }

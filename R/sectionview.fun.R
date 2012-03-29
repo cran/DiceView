@@ -1,3 +1,28 @@
+#' Plot section views of a function
+#' @description Plot one section view per dimension of a function thus providing a better understanding of the model behaviour.
+#' @param fun an object of class \code{"function"}.
+#' @param dim the dimension of fun arguments.
+#' @param center optional coordinates (as a list or data frame) of the center of the section  view if the model's dimension is > 1.
+#' @param axis optional matrix of 1-axis combinations to plot, one by row. The value \code{NULL} leads to all possible combinations i.e. \code{1:D}.
+#' @param npoints an optional number of points to discretize plot of response surface and uncertainties.
+#' @param col_surf color for the section.
+#' @param mfrow an optional list to force \code{par(mfrow = ...)} call. The default value  \code{NULL} is automatically set for compact view.
+#' @param xlim a list to give x range for all plots.
+#' @param ylim an optional list to force y range for all plots.
+#' @param Xname an optional list of string to overload names for X. 
+#' @param yname an optional string to overload name for y. 
+#' @param Xscale an optional factor to scale X. 
+#' @param yscale an optional factor to scale y. 
+#' @param title an optional overload of main title. 
+#' @param add to print graphics on an existing window.
+#' @param \dots further arguments passed to the first call of \code{plot}. 
+#' @details A multiple rows/columns plot is produced.
+#' @author Yann Richet, IRSN
+#' @seealso The function \code{\link{sectionview3d.fun}} produces a 3D version.
+#' @keywords models
+#' @examples
+#' ## A 2D example - Branin-Hoo function.
+#' sectionview.fun(branin,center=c(.5,.5))
 sectionview.fun <- function(fun, dim = ifelse(is.null(center),1,length(center)),
                             center = NULL, axis = NULL,
                             npoints = 100,
@@ -34,7 +59,7 @@ sectionview.fun <- function(fun, dim = ifelse(is.null(center),1,length(center)),
             close.screen( all.screens = TRUE )
             split.screen(figs = mfrow)
         }
-        .split.screen.lim <<- matrix(NaN,ncol=4,nrow=D) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
+        assign(".split.screen.lim",matrix(NaN,ncol=4,nrow=D),envir=DiceView.env) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
     }
     
     ## find limits: 'rx' is matrix with mins in row 1 and maxs in row 2
@@ -83,16 +108,18 @@ sectionview.fun <- function(fun, dim = ifelse(is.null(center),1,length(center)),
         if (is.null(ylim)) {
             ylim <- c(min(y),max(y))
         }
-        
+
         if (isTRUE(add)) {
             # re-use global settings for limits of this screen
+            .split.screen.lim = get(x=".split.screen.lim",envir=DiceView.env)
             xlim <- c(.split.screen.lim[d,1],.split.screen.lim[d,2])
             ylim <- c(.split.screen.lim[d,3],.split.screen.lim[d,4])
+            print(xlim)
             if (D>1) {
                 plot(xd, y,
                      xlim=xlim, ylim=ylim,
                      type = "l",
-                     col = col_surf,
+                     col = col_surf, xlab="", ylab="",
                      ...)
             } else { # not using screen(), so need for a non reset plotting method
                 lines(xd, y,
@@ -101,7 +128,7 @@ sectionview.fun <- function(fun, dim = ifelse(is.null(center),1,length(center)),
                       ...)
             }
         } else {
-            .split.screen.lim[d,] <<- matrix(c(xlim[1],xlim[2],ylim[1],ylim[2]),nrow=1)
+            eval(parse(text=paste(".split.screen.lim[",d,",] = matrix(c(",xlim[1],",",xlim[2],",",ylim[1],",",ylim[2],"),nrow=1)")),envir=DiceView.env)
             plot(xd, y,
                  xlab = Xname[d], ylab = yname,
                  xlim = xlim, ylim = ylim, 

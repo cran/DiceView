@@ -1,3 +1,25 @@
+#' Plot a 3-D (using RGL) view of a function 
+#' @description Plot a 3-D view of a function. Provide a better understanding of the model behaviour.
+#' @param fun an object of class \code{"function"}.
+#' @param dim the dimension of fun arguments.
+#' @param center optional coordinates (as a list or data frame) of the center of the section view if the model's dimension is > 2.
+#' @param axis optional matrix of 2-axis combinations to plot, one by row. The value \code{NULL} leads to all possible combinations i.e. \code{choose(D, 2)}.
+#' @param npoints an optional number of points to discretize plot of response surface and uncertainties.
+#' @param col color for the surface.
+#' @param xlim a list to give x range for all plots.  
+#' @param ylim an optional list to force y range for all plots.
+#' @param Xname an optional list of string to overload names for X. 
+#' @param yname an optional string to overload name for y.
+#' @param Xscale an optional factor to scale X.
+#' @param yscale an optional factor to scale y.
+#' @param title an optional overload of main title.
+#' @param add to print graphics on an existing window.
+#' @param \dots further arguments passed to the first call of \code{plot3d}. 
+#' @author Yann Richet, IRSN 
+#' @seealso \code{\link{sectionview}}
+#' @examples
+#' ## A 2D example - Branin-Hoo function.
+#' sectionview3d.fun(branin,dim = 2)
 sectionview3d.fun <- function(fun,dim = ifelse(is.null(center),2,length(center)),
         center = NULL, axis = NULL,
         npoints = 20,
@@ -8,9 +30,7 @@ sectionview3d.fun <- function(fun,dim = ifelse(is.null(center),2,length(center))
         title = NULL,
         add = FALSE,
         ...) {
-    
-    require(rgl)
-    
+        
     D <- dim
     
     if (D == 1) stop("for a model with dim 1, use 'sectionview'")

@@ -1,3 +1,38 @@
+#' Plot a section view of a model, including design points
+#' @description Plot one section view per dimension of a surrogate model. It is useful for a better understanding of a model behaviour.
+#' @param model a list that can be used as model with the \code{modelPredict} function of the \pkg{DiceEval} package.
+#' @param center optional coordinates (as a list or data frame) of the center of the section view if the model's dimension is > 1.
+#' @param axis optional matrix of 1-axis combinations to plot, one by row. The value \code{NULL} leads to all possible combinations i.e. \code{1:D}.
+#' @param npoints an optional number of points to discretize plot of response surface and uncertainties.
+#' @param col_points color of points.
+#' @param col_surf color for the section.
+#' @param bg_blend an optional factor of alpha (color channel) blending used to plot design points outside from this section.
+#' @param mfrow  an optional list to force \code{par(mfrow = ...)} call. Default (NULL value) is automatically set for compact view.
+#' @param xlim an optional list to force x range for all plots. The default value \code{NULL} is automatically set to include all design points.
+#' @param ylim an optional list to force y range for all plots. The default value \code{NULL} is automatically set to include all design points.
+#' @param Xname an optional list of string to overload names for X. 
+#' @param yname an optional string to overload name for y. 
+#' @param Xscale an optional factor to scale X. 
+#' @param yscale an optional factor to scale y. 
+#' @param title an optional overload of main title. 
+#' @param add to print graphics on an existing window.
+#' @param \dots optional arguments passed to the first call of plot(). 
+#' @details A multiple rows/columns plot is produced. Experimental points are plotted with fading colors. Points that fall in the specified section (if any) have the color specified \code{col_points} while points far away from the center have shaded versions of the same color. The amount of fading is determined using the Euclidean distance between the plotted point and \code{center}.
+#' @author Yann Richet, IRSN
+#' @seealso See \code{\link{sectionview3d.list}} for a 3d version, and the \code{\link[DiceEval]{modelPredict}} function in the \pkg{DiceEval} package.
+#' @keywords models
+#' @examples
+#' ## A 2D example: Branin-Hoo function. See the DiceKriging package manual
+#' ## a 16-points factorial design, and the corresponding response
+#' d <- 2; n <- 16
+#' design.fact <- expand.grid(seq(0, 1, length = 4), seq(0, 1, length = 4))
+#' design.fact <- data.frame(design.fact); names(design.fact) <- c("x1", "x2")
+#' y <- branin(design.fact) 
+#' 
+#' ## linear model
+#' m1 <- modelFit(design.fact, y$x1, type = "Linear", formula = "Y~.")
+#' 
+#' sectionview.list(m1, center = c(.333,.333))
 sectionview.list <- function(model,
                              center = NULL, axis = NULL,
                              npoints = 100,
@@ -36,7 +71,7 @@ sectionview.list <- function(model,
             close.screen( all.screens = TRUE )
             split.screen(figs = mfrow)
         }
-        .split.screen.lim <<- matrix(NaN,ncol=4,nrow=D) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
+        assign(".split.screen.lim",matrix(NaN,ncol=4,nrow=D),envir=DiceView.env) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
     }
     
     # apply scaling factor
@@ -97,13 +132,14 @@ sectionview.list <- function(model,
         
         if (isTRUE(add)) {
             # re-use global settings for limits of this screen
+            .split.screen.lim = get(x=".split.screen.lim",envir=DiceView.env)
             xlim <- c(.split.screen.lim[d,1],.split.screen.lim[d,2])
             ylim <- c(.split.screen.lim[d,3],.split.screen.lim[d,4])
             if (D>1) {
                 plot(xd, y_mean,
                      xlim=xlim, ylim=ylim,
                      type = "l",
-                     col = col_surf,
+                     col = col_surf, xlab="", ylab="",
                      ...)
             } else { # not using screen(), so need for a non reset plotting method
                 lines(xd, y_mean,
@@ -112,7 +148,7 @@ sectionview.list <- function(model,
                       ...)
             }
         } else {
-            .split.screen.lim[d,] <<- matrix(c(xlim[1],xlim[2],ylim[1],ylim[2]),nrow=1)
+            eval(parse(text=paste(".split.screen.lim[",d,",] = matrix(c(",xlim[1],",",xlim[2],",",ylim[1],",",ylim[2],"),nrow=1)")),envir=DiceView.env)
             plot(xd, y_mean,
                  xlab = Xname[d], ylab = yname,
                  ylim = ylim, main = title_d,

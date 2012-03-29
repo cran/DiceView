@@ -1,3 +1,39 @@
+#' Plot a 3-D (using RGL) view of a model, including design points
+#' @description Plot a 3-D view of a model, thus providing a better understanding of its behaviour.
+#' @param model a list that can be used in the \code{modelPredict} function of the \pkg{DiceEval} package.
+#' @param center optional coordinates (as a list or data frame) of the center of the section view if the model's dimension is > 2.
+#' @param axis optional matrix of 2-axis combinations to plot, one by row. The value \code{NULL} leads to all possible combinations i.e. \code{choose(D, 2)}.
+#' @param npoints an optional number of points to discretize plot of response  surface and uncertainties.
+#' @param col_points color of points.
+#' @param col_surf color for the surface.
+#' @param col_needles color of "needles" for the points. The default \code{NA} corresponds to no needle plotted. When a valid color is given, needles are plotted using the same fading mechanism as for points.
+#' @param bg_blend  an optional factor of alpha (color channel) blending used to plot design points outside from this section.
+#' @param xlim  an optional list to force x range for all plots. The default value \code{NULL} is automatically set to include all design points.
+#' @param ylim  an optional list to force y range for all plots. The default value \code{NULL} is automatically set to include all design points.
+#' @param Xname an optional list of string to overload names for X. 
+#' @param yname an optional string to overload name for y. 
+#' @param Xscale an optional factor to scale X. 
+#' @param yscale an optional factor to scale y. 
+#' @param title an optional overload of main title. 
+#' @param add to print graphics on an existing window.
+#' @param \dots optional arguments passed to the first call of \code{plot3d}. 
+#' @details Experimental points are plotted with fading colors. Points that fall in the specified section (if any) have the color specified \code{col_points} while points far away from the center have shaded versions of the same color. The amount of fading is determined using the Euclidean distance between the plotted point and \code{center}. The variables chosen with their number are to be found in the \code{data$X} element of the model. Thus they are original data variables but not trend variables that may have been created using the model's formula
+#' @author Yann Richet, IRSN
+#' @seealso \code{\link{sectionview.list}} for a 2D plot, and the \code{\link[DiceEval]{modelPredict}} function in the \pkg{DiceEval} package. The \code{\link{sectionview3d.km}} produces a similar plot for \code{km} objects.
+#' @keywords models
+#' @examples
+#' ## A 2D example - Branin-Hoo function
+#' ## a 16-points factorial design, and the corresponding response
+#' d <- 2; n <- 16
+#' design.fact <- expand.grid(seq(0, 1, length = 4), seq(0, 1, length = 4))
+#' design.fact <- data.frame(design.fact); names(design.fact) <-c("x1", "x2")
+#' y <- branin(design.fact) 
+#' 
+#' ## linear model
+#' m1 <- modelFit(design.fact, y$x1, type = "Linear", formula = "Y~.")
+#' 
+#' ## the same as sectionview3d.list
+#' sectionview3d(m1)
 sectionview3d.list <- function(model, 
 		center = NULL, axis = NULL, 
 		npoints = 20,
@@ -11,8 +47,6 @@ sectionview3d.list <- function(model,
         title = NULL, 
         add = FALSE,
         ...) {
-    
-    require(rgl)
     
     D <- length(model$data$X)
     if (D == 1) stop("for a model with dim 1, use 'sectionview'")

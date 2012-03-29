@@ -1,3 +1,5 @@
+DiceView.env <- new.env()
+
 
 ##=========================================================
 ## make colors semi-transparent
@@ -12,11 +14,23 @@ translude <- function(colors, alpha = 0.6) {
     alpha <- rep(alpha, length.out = length(colors))
     rgb <- as.matrix(col2rgb(colors)/255)
     colors2 <- rgb(red = rgb["red", ],
-            green = rgb["green", ],
-            blue = rgb["blue", ],
-            alpha = alpha)
+                   green = rgb["green", ],
+                   blue = rgb["blue", ],
+                   alpha = alpha)
     
     
+}
+
+##========================================================
+## level color: one base color incermented in hsv to provide a palette
+## 
+##========================================================
+
+col.levels <- function(color,nlevels){
+        col.rgb=col2rgb(color)
+        col.hsv=rgb2hsv(r=col.rgb[1],g=col.rgb[2],b=col.rgb[3])
+        col = hsv(h=col.hsv[1],s=seq(f=0,t=col.hsv[2],l=nlevels),v=col.hsv[3])
+        return(col)
 }
 
 ##========================================================
@@ -33,8 +47,8 @@ translude <- function(colors, alpha = 0.6) {
 ##========================================================
 
 fade <- function(color = "red",
-        alpha =  seq(from = 0, to = 1, length.out = 5),
-        plot = FALSE) {
+                 alpha =  seq(from = 0, to = 1, length.out = 5),
+                 plot = FALSE) {
     
     if (any(alpha < 0) || any(alpha > 1)) stop("'alpha' values must be >=0 and <= 1")
     if (length(color) > 1) stop("'color' must be of length 1")  
@@ -46,20 +60,20 @@ fade <- function(color = "red",
     mat <- mat + rgbcol %*% alpha 
     
     colors2 <- rgb(red = mat[1, ],
-            green = mat[2, ],
-            blue = mat[3, ],
-            alpha = alpha)
+                   green = mat[2, ],
+                   blue = mat[3, ],
+                   alpha = alpha)
     
     if (plot) {
         x <- seq(from = 0, to = 1, length.out = length(alpha))
         plot.new( )
         for ( i in 1:(length(alpha)) ){
             rect(xleft = x[i],
-                    xright = x[i+1],
-                    ybottom = 0,
-                    ytop =  1,
-                    border = NA,
-                    col = colors2[i])
+                 xright = x[i+1],
+                 ybottom = 0,
+                 ytop =  1,
+                 border = NA,
+                 col = colors2[i])
         }
         
     }

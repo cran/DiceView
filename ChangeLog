@@ -1,3 +1,7 @@
+2013-11-01 richet
+
+    * add "filled" option for contourview*
+
 2012-06-27 richet
 
     * add view(type={"xy","3d","contour","section","section3d"}) entry wrapper

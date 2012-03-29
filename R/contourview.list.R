@@ -1,17 +1,60 @@
+#' Plot a contour view of a model, including design points
+#' @description Plot a contour view of a model, thus providing a better understanding of its behaviour.
+#' @param model a list that can be used in the \code{modelPredict} function of the \pkg{DiceEval} package.
+#' @param center optional coordinates (as a list or data frame) of the center of the section view if the model's dimension is > 2.
+#' @param axis optional matrix of 2-axis combinations to plot, one by row. The value \code{NULL} leads to all possible combinations i.e. \code{choose(D, 2)}.
+#' @param npoints an optional number of points to discretize plot of response  surface and uncertainties.
+#' @param col_points color of points.
+#' @param col_surf color for the surface.
+#' @param filled use filled.contour
+#' @param nlevels number of contour levels to display.
+#' @param mfrow  an optional list to force \code{par(mfrow = ...)} call. The default value  \code{NULL} is automatically set for compact view.
+#' @param bg_blend  an optional factor of alpha (color channel) blending used to plot design points outside from this section.
+#' @param xlim an optional list to force x range for all plots. The default value \code{NULL} is automatically set to include all design points.
+#' @param ylim an optional list to force y range for all plots. The default value \code{NULL} is automatically set to include all design points.
+#' @param Xname an optional list of string to overload names for X. 
+#' @param yname an optional string to overload name for y. 
+#' @param Xscale an optional factor to scale X. 
+#' @param yscale an optional factor to scale y. 
+#' @param title an optional overload of main title. 
+#' @param add to print graphics on an existing window.
+#' @param \dots optional arguments passed to the first call of \code{plot3d}.
+#' @details Experimental points are plotted with fading colors. Points that fall in the specified section (if any) have the color specified \code{col_points} while points far away from the center have shaded versions of the same color. The amount of fading is determined using the Euclidean distance between the plotted point and \code{center}. The variables chosen with their number are to be found in the \code{data$X} element of the model. Thus they are original data variables but not trend variables that may have been created using the model's formula.
+#' @author Yann Richet, IRSN
+#' @seealso \code{\link{sectionview.list}} for a 2D plot, and the \code{\link[DiceEval]{modelPredict}} function in the \pkg{DiceEval} package. The \code{\link{sectionview3d.km}} produces a similar plot for \code{km} objects.
+#' @keywords models
+#' @examples
+#' ## A 2D example - Branin-Hoo function
+#' ## a 16-points factorial design, and the corresponding response
+#' d <- 2; n <- 16
+#' design.fact <- expand.grid(seq(0, 1, length = 4), seq(0, 1, length = 4))
+#' design.fact <- data.frame(design.fact); names(design.fact) <-c("x1", "x2")
+#' y <- branin(design.fact) 
+#' 
+#' ## linear model
+#' m1 <- modelFit(design.fact, y$x1, type = "Linear", formula = "Y~.")
+#' 
+#' ## the same as sectionview3d.list
+#' contourview(m1)
 contourview.list <- function(model,
-        center = NULL, axis = NULL,
-        npoints = 20,
-        col_points = "red",
-        col_surf = "blue",
-        nlevels = 10,
-        bg_blend = 1,
-        mfrow = NULL,
-        Xname = NULL, yname = NULL,
-        Xscale = 1, yscale = 1,
-        xlim = NULL, ylim = NULL, 
-        title = NULL,
-        add = FALSE,
-        ...) {
+                             center = NULL, axis = NULL,
+                             npoints = 20,
+                             nlevels = 10,
+                             col_points = "red",
+                             col_surf = "blue",
+                             filled = FALSE,
+                             bg_blend = 1,
+                             mfrow = NULL,
+                             Xname = NULL, yname = NULL,
+                             Xscale = 1, yscale = 1,
+                             xlim = NULL, ylim = NULL, 
+                             title = NULL,
+                             add = FALSE,
+                             ...) {
+    
+    if (length(col)==1 && isTRUE(filled)) {
+        col_surf.fill = col.levels(col_surf,nlevels-1)
+    }
     
     D <- length(model$data$X)
     
@@ -22,7 +65,7 @@ contourview.list <- function(model,
     }
     
     if (is.null(axis)) {
-    axis <- t(combn(D, 2))
+        axis <- t(combn(D, 2))
     } else {
         ## added by YD for the vector case
         axis <- matrix(axis, ncol = 2)
@@ -39,7 +82,7 @@ contourview.list <- function(model,
             close.screen( all.screens = TRUE )
             split.screen(figs = mfrow)
         }
-        .split.screen.lim <<- matrix(NaN,ncol=4,nrow=D) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
+        assign(".split.screen.lim",matrix(NaN,ncol=4,nrow=D),envir=DiceView.env) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
     }
     
     ## Changed by YD: a vector
@@ -125,8 +168,11 @@ contourview.list <- function(model,
         ## plot mean surface two steps required to use alpha = 
         if (isTRUE(add)) {
             # re-use global settings for limits of this screen
+            .split.screen.lim = get(x=".split.screen.lim",envir=DiceView.env)
             xlim <- c(.split.screen.lim[id,1],.split.screen.lim[id,2])
             ylim <- c(.split.screen.lim[id,3],.split.screen.lim[id,4])
+            if (isTRUE(filled))
+                warning("add=TRUE, so filled=TRUE disabled to not shadow previous plot")
             contour(x = xd1,y = xd2, z = yd_mean,
                     xlim = xlim, ylim = ylim, zlim = zlim, 
                     col = col_surf, 
@@ -135,15 +181,20 @@ contourview.list <- function(model,
                     add=TRUE,
                     ...)
         } else {
-            .split.screen.lim[id,] <<- matrix(c(xlim[1],xlim[2],ylim[1],ylim[2]),nrow=1)
+            eval(parse(text=paste(".split.screen.lim[",id,",] = matrix(c(",xlim[1],",",xlim[2],",",ylim[1],",",ylim[2],"),nrow=1)")),envir=DiceView.env)
+            if (isTRUE(filled))
+                .filled.contour(x = xd1,y = xd2, z = yd_mean,
+                                col = col_surf.fill, 
+                                levels = pretty(y_mean,nlevels))
             contour(x = xd1,y = xd2, z = yd_mean,
-                xlab = Xname[d[1]], ylab = Xname[d[2]], 
-                xlim = xlim, ylim = ylim, zlim = zlim, 
-                main = title_d,
-                col = col_surf, 
-                nlevels = nlevels,
-                levels = pretty(y_mean,nlevels),
-                ...)
+                    xlab = Xname[d[1]], ylab = Xname[d[2]], 
+                    xlim = xlim, ylim = ylim, zlim = zlim, 
+                    main = title_d,
+                    col = col_surf, 
+                    nlevels = nlevels,
+                    levels = pretty(y_mean,nlevels),
+                    add=isTRUE(filled),
+                    ...)
             if(D>2) {
                 abline(v=center[d[1]],col='black',lty=2)
                 abline(h=center[d[2]],col='black',lty=2)
@@ -154,12 +205,12 @@ contourview.list <- function(model,
         if (D>2) {
             
             xrel <- scale(x = as.matrix(X_doe),
-                    center = center,
-                    scale = drx)            
+                          center = center,
+                          scale = drx)            
             
             alpha <- apply(X = xrel[ , ind.nonfix, drop = FALSE],
-                    MARGIN = 1,
-                    FUN = function(x) (1 - sqrt(sum(x^2)/D))^bg_blend) 
+                           MARGIN = 1,
+                           FUN = function(x) (1 - sqrt(sum(x^2)/D))^bg_blend) 
             
         } else {
             alpha <- rep(1, n)
@@ -169,9 +220,9 @@ contourview.list <- function(model,
         #cat("faded colors\n"); print(col1)
         
         points(X_doe[,d],
-                col = col1,
-                ## col = rgb(1, 1-alpha, 1-alpha, alpha),
-                pch = 20)
+               col = col1,
+               ## col = rgb(1, 1-alpha, 1-alpha, alpha),
+               pch = 20)
         
     }
 }
