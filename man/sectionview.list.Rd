@@ -16,7 +16,7 @@ sectionview.list(model, center=NULL,
                  mfrow = NULL, 
                  Xname = NULL, yname = NULL,
                  Xscale = 1, yscale = 1,
-                 ylim = NULL, title = NULL,
+                 xlim = NULL, ylim = NULL, title = NULL, add = FALSE,
                  ...)
 }
 
@@ -38,14 +38,18 @@ sectionview.list(model, center=NULL,
     design points outside from this section.}
   \item{mfrow}{ an optional list to force \code{par(mfrow = ...)}
     call. Default (NULL value) is automatically set for compact view.}
-  \item{ylim}{an optional list to force y range for all plots. Default
-    (NULL value) is automatically set to include all design points (and
-    their 1-99 percentiles).}
+  \item{xlim}{an optional list to force x range for all plots. The
+    default value \code{NULL} is automatically set to include all design
+    points.}
+  \item{ylim}{an optional list to force y range for all plots. The
+    default value \code{NULL} is automatically set to include all design
+    points.}
   \item{Xname}{an optional list of string to overload names for X. }
   \item{yname}{an optional string to overload name for y. }
   \item{Xscale}{an optional factor to scale X. }
   \item{yscale}{an optional factor to scale y. }
   \item{title}{an optional overload of main title. }
+  \item{add}{to print graphics on an existing window.}
   \item{\dots}{optional arguments passed to the first call of plot(). }
 }
 \details{
@@ -80,6 +84,6 @@ y <- branin(design.fact)
 ## linear model
 m1 <- modelFit(design.fact, y$x1, type = "Linear", formula = "Y~.")
 
-sectionview(m1, center = c(.333,.333))
+sectionview.list(m1, center = c(.333,.333))
 
 }

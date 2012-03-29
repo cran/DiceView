@@ -1,3 +1,11 @@
+2012-03-26 richet
+
+    * add {sectionview,sectionview3d,contourview}.fun 
+
+2011-08-25 richet
+
+    * add contourview, contourview.km, contourview.list to display contour from >2-D models
+
 2010-11-15  yves  
 
 	* all code changed with a normalized style (e.g. spacings between

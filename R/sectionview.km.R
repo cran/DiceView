@@ -1,5 +1,4 @@
-sectionview.km <- function(model,
-        type = "UK",
+sectionview.km <- function(model, type = "UK",
         center = NULL,
         npoints = 100,
         col_points = "red",
@@ -8,12 +7,11 @@ sectionview.km <- function(model,
         conf_blend = NULL,
         bg_blend = 5,
         mfrow = NULL,
-        Xname = NULL,
-        yname = NULL,
-        Xscale = 1,
-        yscale = 1,
-        ylim = NULL,
+        Xname = NULL, yname = NULL,
+        Xscale = 1, yscale = 1,
+        xlim = NULL, ylim = NULL,
         title = NULL,
+        add = FALSE,
         ...) {
     
     D <- model@d
@@ -31,8 +29,12 @@ sectionview.km <- function(model,
         nl <- ceiling(D/nc)
         mfrow <- c(nc, nl)
     }
-    if (mfrow[1] != 1 || mfrow[2] != 1)
-        par(mfrow = mfrow)
+    
+    if (!isTRUE(add)) {
+        close.screen( all.screens = TRUE )
+        split.screen(figs = mfrow)
+        .split.screen.lim <<- matrix(NaN,ncol=4,nrow=D) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
+    }
     
     ## apply scaling factor
     X_doe <- Xscale * model@X
@@ -49,6 +51,7 @@ sectionview.km <- function(model,
     
     ## find limits: 'rx' is matrix with mins in row 1 and maxs in row 2
     rx <- apply(X_doe, 2, range)
+    if(!is.null(xlim)) rx <- matrix(xlim,nrow=2,ncol=D)
     rownames(rx) <- c("min", "max")
     drx <- rx["max", ] - rx["min", ]
     
@@ -68,13 +71,15 @@ sectionview.km <- function(model,
     fcenter <- tryFormat(x = center, drx = drx)
     
     for (d in 1:D) {
+        screen(d)
         
         xdmin <- rx["min", d]
         xdmax <- rx["max", d]
+        xlim = c(xdmin,xdmax)
         
         xd <- seq(from = xdmin, to = xdmax, length.out = npoints)
         x <- data.frame(t(matrix(as.numeric(center), nrow = D, ncol = npoints)))
-        names(x) <- names(center)
+        if (!is.null(center)) if(!is.null(names(center))) names(x) <- names(center)
         x[ , d] <- xd
         
         ## could be simplified in the future
@@ -96,12 +101,28 @@ sectionview.km <- function(model,
             title_d <- title
         }
         
-        plot(xd, y_mean,
+        if (isTRUE(add)) {
+            # re-use global settings for limits of this screen
+            xlim <- c(.split.screen.lim[d,1],.split.screen.lim[d,2])
+            ylim <- c(.split.screen.lim[d,3],.split.screen.lim[d,4])
+            plot(xd, y_mean,
+                    xlab = "", ylab = "",
+                    xlim = xlim, ylim = ylim, 
+                    type = "l", lty = 3,
+                    col = col_surf,
+                    add = TRUE,
+                    ...)
+        } else {
+            .split.screen.lim[d,] <<- matrix(c(xlim[1],xlim[2],ylim[1],ylim[2]),nrow=1)
+            plot(xd, y_mean,
                 xlab = Xname[d], ylab = yname,
-                ylim = ylim, main = title_d,
-                type = "l",
+                xlim = xlim, ylim = ylim, 
+                main = title_d,
+                type = "l", lty = 3,
                 col = col_surf,
                 ...)
+            if(D>1) abline(v=center[d],col='black',lty=2)
+        }
         
         ## 'confidence band' filled with the suitable color 
         for (p in 1:length(conf_lev)) {

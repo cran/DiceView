@@ -10,7 +10,9 @@ sectionview3d.km <- function(model, type = "UK",
         bg_blend = 5,
         Xname = NULL, yname = NULL,
         Xscale = 1, yscale = 1,
-        ylim = NULL, title = NULL,
+        xlim = NULL, ylim = NULL, 
+        title = NULL,
+        add = FALSE,
         ...) {
     
     require(rgl)
@@ -56,6 +58,7 @@ sectionview3d.km <- function(model, type = "UK",
     
     ## find limits: rx is matrix with min in row 1 and max in row 2
     rx <- apply(X_doe, 2, range)
+    if(!is.null(xlim)) rx <- matrix(xlim,nrow=2,ncol=D)
     rownames(rx) <- c("min", "max")
     drx <- rx["max", ] - rx["min", ]
     
@@ -100,7 +103,7 @@ sectionview3d.km <- function(model, type = "UK",
         xd2 <- seq(from = xdmin[2], to = xdmax[2], length.out = npoints[2])
         
         x <- data.frame(t(matrix(as.numeric(center), D, npoints_all)))
-        names(x) <- names(center)
+        if (!is.null(center)) if(!is.null(names(center))) names(x) <- names(center)
         x[ , d] <- expand.grid(xd1, xd2)
         y_mean <- array(0, npoints_all)
         y_sd <- array(0, npoints_all)
@@ -132,15 +135,16 @@ sectionview3d.km <- function(model, type = "UK",
             title_d <-  title
         }
         
-        open3d()
-        
-        ## plot mean surface two steps required to use alpha = 
-        plot3d(x = x[ , 1], y = x[ , 2], z = y_mean,
-                xlab = Xname[d[1]], ylab = Xname[d[2]], zlab = yname,
-                xlim = xlim, ylim = ylim, zlim = zlim, type = "n",
-                main = title_d,
-                col = col_surf,
-                ...)
+        if (!isTRUE(add)) {
+            open3d()
+            
+            plot3d(x = x[ , 1], y = x[ , 2], z = y_mean,
+            xlab = Xname[d[1]], ylab = Xname[d[2]], zlab = yname,
+            xlim = xlim, ylim = ylim, zlim = zlim, type = "n",
+            main = title_d,
+            col = col_surf,
+            ...)
+        }
         
         surface3d(x = xd1,y = xd2, z = yd_mean,
                 col = col_surf, alpha = 0.5,

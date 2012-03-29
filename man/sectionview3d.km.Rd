@@ -17,7 +17,7 @@ sectionview3d.km(model, type = "UK", center = NULL, axis = NULL,
                  conf_blend = NULL,
                  bg_blend = 5,
                  Xname = NULL, yname = NULL, Xscale = 1, yscale = 1,
-                 ylim = NULL, title = NULL,
+                 xlim = NULL, ylim = NULL, title = NULL, add = FALSE,
                  ...)
 }
 
@@ -56,10 +56,15 @@ sectionview3d.km(model, type = "UK", center = NULL, axis = NULL,
   \item{bg_blend}{
     an optional factor of alpha (color channel)
     blending used to plot design points outside from this section.
+  }  
+  \item{xlim}{
+    an optional list to force x range for all plots. The
+    default value \code{NULL} is automatically set to include all design
+    points.
   }
   \item{ylim}{
-    an optional list to force y range for all plots. Default
-    value \code{NULL}  is automatically set to include all design points
+    an optional list to force y range for all plots. The
+    default value \code{NULL} is automatically set to include all design points
     (and their 1-99 percentiles).
   }
   \item{Xname}{an optional list of string to overload names for X. }
@@ -67,6 +72,7 @@ sectionview3d.km(model, type = "UK", center = NULL, axis = NULL,
   \item{Xscale}{an optional factor to scale X.}
   \item{yscale}{an optional factor to scale y.}
   \item{title}{an optional overload of main title.}
+  \item{add}{to print graphics on an existing window.}
   \item{\dots}{further arguments passed to the first call of \code{plot3d}. }
 }
 \details{

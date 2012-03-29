@@ -1,24 +1,22 @@
-contourview.km <- function(model, type = "UK",
-        center = NULL,
+contourview.fun <- function(fun,
+        center = NULL, dim = length(center),
         npoints = 20,
-        col_points = "red",
-        col_surf = "blue",
+        col = "blue",
         nlevels = 10,
-        bg_blend = 1,
         mfrow = NULL,
         Xname = NULL, yname = NULL,
         Xscale = 1, yscale = 1,
-        xlim = NULL, ylim = NULL, 
+        xlim = c(0,1), ylim = NULL,
         title = NULL,
         add = FALSE,
         ...) {
     
-    D <- model@d
+    D <- dim
     
-    if (D == 1) stop("for a model with dim 1, use 'sectionview'")
+    if (D == 1) stop("for a fun with dim 1, use 'sectionview'")
     
     if (is.null(center)) {
-        if (D != 2) stop("Section center in 'section' required for >2-D model.")
+        if (D != 2) stop("Section center in 'section' required for >2-D fun.")
     }
     
     axis <- t(combn(D, 2))
@@ -39,34 +37,16 @@ contourview.km <- function(model, type = "UK",
     ## if (is.null(dim(npoints))) { npoints <- rep(npoints,D) }
     npoints <- rep(npoints, length.out = D)
     
-    ##  apply scaling factor
-    X_doe <- Xscale * model@X
-    n <- dim(X_doe)[1]
-    y_doe <- yscale * model@y
-    
-    if (model@noise.flag) {
-        sdy_doe <- abs(yscale) * sqrt(model@noise.var)
-    } else if (model@covariance@nugget.flag) {
-        sdy_doe <- rep(abs(yscale) * sqrt(model@covariance@nugget), n)
-    } else {
-        sdy_doe <- rep(0, n)
-    }
-    
     ## find limits: rx is matrix with min in row 1 and max in row 2
-    rx <- apply(X_doe, 2, range)
-    if(!is.null(xlim)) rx <- matrix(xlim,nrow=2,ncol=D)
+    if(!is.null(xlim)) rx <- matrix(xlim,nrow=2,ncol=D) 
+    else stop("x bounds required for fun.")
     rownames(rx) <- c("min", "max")
-    drx <- rx["max", ] - rx["min", ]
+    drx <- rx["max", ] - rx["min", ]   
     
-    if (is.null(ylim)) {
-        zlim <- range(y_doe)
-    } else zlim <- ylim
-    
+    zlim <- ylim
     
     ## define X & y labels
-    if (is.null(yname)) yname <- names(y_doe)
     if (is.null(yname)) yname <- "y"
-    if (is.null(Xname)) Xname <- names(X_doe)
     if (is.null(Xname)) Xname <- paste(sep = "", "X", 1:D)
     
     
@@ -103,22 +83,16 @@ contourview.km <- function(model, type = "UK",
         x <- data.frame(t(matrix(as.numeric(center), D, npoints_all)))
         if (!is.null(center)) if(!is.null(names(center))) names(x) <- names(center)
         x[ , d] <- expand.grid(xd1, xd2)
-        y_mean <- array(0, npoints_all)
-        y_sd <- array(0, npoints_all)
-        yd_mean <- matrix(0,npoints[1], npoints[2])
-        yd_sd <- matrix(0,npoints[1], npoints[2])
+        yd <- matrix(0,npoints[1], npoints[2])
+        y <- array(0,npoints[1]*npoints[2])
         
-        ## compute predictions for km.
-        ## Note that 'sd' is actually a 'se' (standard error) 
+        ## compute fun.
         
         for (i1 in 1:npoints[1]) {
             for (i2 in 1:npoints[2]) {
                 i <- i1 + (i2-1) * npoints[1]
-                y <- predict.km(model, type = type, newdata = (x[i,]))
-                y_mean[i] <- yscale * y$mean
-                y_sd[i] <- abs(yscale) * y$sd
-                yd_mean[i1, i2] <- yscale * y$mean
-                yd_sd[i1, i2] <- abs(yscale) * y$sd
+                yd[i1, i2] <- as.numeric(yscale * fun(x[i,]))
+                y[i] <- yd[i1, i2]
             }
         }
         
@@ -133,63 +107,36 @@ contourview.km <- function(model, type = "UK",
             title_d <-  title
         }
         
+        if (is.null(zlim)) {
+            zlim <- c(min(yd),max(yd))
+        }
+        
         ## plot mean surface two steps required to use alpha = 
         if (isTRUE(add)) {
             # re-use global settings for limits of this screen
             xlim <- c(.split.screen.lim[id,1],.split.screen.lim[id,2])
             ylim <- c(.split.screen.lim[id,3],.split.screen.lim[id,4])
-            contour(x = xd1,y = xd2, z = yd_mean,
+            contour(x = xd1,y = xd2, z = yd,
                     xlab = "", ylab = "", 
                     xlim = xlim, ylim = ylim, zlim = zlim, 
-                    col = col_surf,  lty = 3,
+                    col = col, 
                     nlevels = nlevels,
-                    levels = pretty(y_mean,nlevels),
+                    levels = pretty(y,nlevels),
                     ...)
         } else {
             .split.screen.lim[id,] <<- matrix(c(xlim[1],xlim[2],ylim[1],ylim[2]),nrow=1)
-            contour(x = xd1,y = xd2, z = yd_mean,
+            contour(x = xd1,y = xd2, z = yd,
                 xlab = Xname[d[1]], ylab = Xname[d[2]], 
                 xlim = xlim, ylim = ylim, zlim = zlim, 
                 main = title_d,
-                col = col_surf,  lty = 3,
+                col = col, 
                 nlevels = nlevels,
-                levels = pretty(y_mean,nlevels),
+                levels = pretty(y,nlevels),
                 ...)
             if(D>2) {
-                abline(v=center[d[1]],col='black',lty=2)
-                abline(h=center[d[2]],col='black',lty=2)
-            }
+                    abline(v=center[d[1]],col='black',lty=2)
+                    abline(h=center[d[2]],col='black',lty=2)
+                }
         }
-        
-        ## fade the contour according to kriging sd
-        col_surf_rgba = col2rgb("white")
-        col_sd = rgb(col_surf_rgba[1]/255,col_surf_rgba[2]/255,col_surf_rgba[3]/255,seq(from=0,to=1,length=20))
-        image(x = xd1,y = xd2, z = yd_sd,
-                col = col_sd, breaks=seq(from=min(yd_sd),to=max(yd_sd),length=length(col_sd)+1),
-                add=TRUE)
-        
-        ## fading colors for points
-        if (D>2) {
-            
-            xrel <- scale(x = as.matrix(X_doe),
-                    center = center,
-                    scale = drx)            
-            
-            alpha <- apply(X = xrel[ , ind.nonfix, drop = FALSE],
-                    MARGIN = 1,
-                    FUN = function(x) (1 - sqrt(sum(x^2)/D))^bg_blend) 
-            
-        } else {
-            alpha <- rep(1, n)
-        }
-        
-        col1 <- fade(color = col_points, alpha = alpha)
-        #cat("faded colors\n"); print(col1)
-        
-        points(X_doe[,d],
-                col = col1,
-                ## col = rgb(1, 1-alpha, 1-alpha, alpha),
-                pch = 20)
-        
     }
 }

@@ -1,5 +1,5 @@
-\name{contourview.km}
-\alias{contourview.km}
+\name{contourview.fun}
+\alias{contourview.fun}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{Plot a contour view of a kriging model, including design points }
 \description{
@@ -8,22 +8,20 @@
 }
 
 \usage{
-contourview.km(model, type = "UK", center = NULL,
+contourview.fun(fun, center = NULL, dim = length(center),
                  npoints = 20,
-                 col_points = "red",
-                 col_surf = "blue",
+                 col = "blue",
                  nlevels = 10,
-                 bg_blend = 1,
                  mfrow = NULL,
                  Xname = NULL, yname = NULL, Xscale = 1, yscale = 1,
-                 xlim = NULL, ylim = NULL, title = NULL, add = FALSE,
+                 xlim = c(0,1), ylim = NULL, title = NULL, add = FALSE,
                  ...)
 }
 
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{model}{an object of class \code{"km"}.}
-  \item{type}{the kriging type to use for model prediction.}
+  \item{fun}{an object of class \code{"function"}.}
+  \item{dim}{the dimension of fun arguments.}
   \item{center}{
     optional coordinates (as a list or data frame) of the
     center of the section view if the model's dimension is > 2.
@@ -32,27 +30,18 @@ contourview.km(model, type = "UK", center = NULL,
     an optional number of points to discretize plot of
     response surface and uncertainties.
   }
-  \item{col_points}{color of points.}
-  \item{col_surf}{color for the surface.}
+  \item{col}{color for the surface.}
   \item{nlevels}{
     number of contour levels to display.
-  }
-  \item{bg_blend}{
-    an optional factor of alpha (color channel)
-    blending used to plot design points outside from this section.
   }
   \item{mfrow}{
     an optional list to force \code{par(mfrow = ...)} call. The default
     value  \code{NULL} is automatically set for compact view.
   }
   \item{xlim}{
-    an optional list to force x range for all plots. The
-    default value \code{NULL} is automatically set to include all design
-    points.}
+    a list to give x range for all plots.}
   \item{ylim}{
-    an optional list to force y range for all plots. The
-    default value \code{NULL} is automatically set to include all design points
-    (and their 1-99 percentiles).
+    an optional list to force y range for all plots.
   }
   \item{Xname}{an optional list of string to overload names for X. }
   \item{yname}{an optional string to overload name for y.}
@@ -75,37 +64,12 @@ contourview.km(model, type = "UK", center = NULL,
 }
 %%\value{No value.}
 \author{Yann Richet, IRSN }
-\note{
-  The confidence bands are computed using normal quantiles and the
-  standard error given by \code{predict.km}.
-}
 \seealso{
-  See \code{\link{sectionview3d.km}} and the
-  \code{\link[DiceKriging]{km}} function in the \pkg{DiceKriging}
-  package.
+  See \code{\link{sectionview3d.fun}}.
 }
 
 \keyword{models}
 \examples{
-## A 2D example - Branin-Hoo function. See DiceKriging package manual 
-## a 16-points factorial design, and the corresponding response
-d <- 2; n <- 16
-design.fact <- expand.grid(seq(0, 1, length = 4), seq(0, 1, length = 4))
-design.fact <- data.frame(design.fact); names(design.fact)<-c("x1", "x2")
-y <- branin(design.fact) 
-
-## kriging model 1 : matern5_2 covariance structure, no trend, no nugget effect
-
-m1 <- km(design = design.fact, response = y)
-
-## the same as contourview.km
-contourview(m1)
-
-## change colors
-contourview(m1, col_points = "firebrick", col_surf = "SpringGreen2")
-
-## change colors,  use finer grid and add needles
-contourview(m1, npoints = c(50, 30), col_points = "orange",
-  col_surf = "SpringGreen2") 
-
+## A 2D example - Branin-Hoo function.
+contourview.fun(branin,dim = 2)
 }

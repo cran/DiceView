@@ -2,32 +2,24 @@
 \alias{sectionview}
 \alias{sectionview,km-method}
 \alias{sectionview,list-method}
+\alias{sectionview,function-method}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{Plot a section view of a kriging model or 
-  or modelPredict model, including design points }
+\title{Plot a section view of a kriging or modelPredict model including design points, or a function.}
 \description{
-  Plot one section view per dimension of a kriging or
-  \code{modelPredict} model. It is useful for a better understanding
-  of a model behaviour (incuding uncertainty).
+  Plot one section view per dimension of a kriging,
+  \code{modelPredict} model or function. It is useful for a better understanding
+  of a model behaviour (including uncertainty).
 }
 
 \usage{
 sectionview(model, ...)
 }
-\details{
-   The \code{model} specfies a model predicting a continuous response
-   \eqn{y}{y} with a vector \eqn{\mathbf{x}}{x} of continuous
-   covariates. This includes \code{lm} as well as spatial proces-based
-   models like \code{km}. The plot shows prediction when
-   \eqn{\mathbf{x}}{x} has all its components fixed to
-   given values, except one say \eqn{x_d}{x[d]}.
-   
-}
+
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{model}{ an object of class \code{"km"} or a list usable as a
-    model with the \code{modelPredict} function of the \pkg{DiceEval} package.}
-  \item{\dots}{ other arguments of the \code{sectionview.km} or \code{sectionview.list} function }
+  \item{model}{an object of class \code{"km"}, a list that can be used
+    in a \code{"modelPredict"} call, or a function.}
+  \item{\dots}{other arguments of the \code{contourview.km}, \code{contourview.list} or \code{contourview.fun} function }
 }
   
 %%\value{ No value}
@@ -35,13 +27,12 @@ sectionview(model, ...)
 \author{ Yann Richet, IRSN }
 
 \seealso{
-  See the documentation of \code{\link{sectionview.km}} and \code{\link{sectionview.list}}
+  See the documentation of \code{\link{sectionview.km}}, \code{\link{sectionview.list}}, or \code{\link{sectionview.fun}}
   for the arguments.
 
   The \code{\link{sectionview3d}} method provides a 3D version. 
 }
 
-\keyword{models}
 \examples{
 ## A 2D example - Branin-Hoo function
 ## a 16-points factorial design, and the corresponding response
@@ -54,5 +45,7 @@ y <- branin(design.fact)
 m1 <- km(design = design.fact, response = y)
 
 sectionview(m1, center = c(.333, .333))
+
+sectionview(branin, dim = 2, center = c(.333, .333), add = TRUE)
 
 }

@@ -8,7 +8,9 @@ contourview.list <- function(model,
         mfrow = NULL,
         Xname = NULL, yname = NULL,
         Xscale = 1, yscale = 1,
-        ylim = NULL, title = NULL,
+        xlim = NULL, ylim = NULL, 
+        title = NULL,
+        add = FALSE,
         ...) {
     
     D <- length(model$data$X)
@@ -26,8 +28,12 @@ contourview.list <- function(model,
         nl <- ceiling(nrow(axis)/nc)
         mfrow <- c(nc, nl)
     }
-    if (mfrow[1] != 1 || mfrow[2] != 1)
-        par(mfrow = mfrow)
+    
+    if (!isTRUE(add)) {
+        close.screen( all.screens = TRUE )
+        split.screen(figs = mfrow)
+        .split.screen.lim <<- matrix(NaN,ncol=4,nrow=D) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
+    }
     
     ## Changed by YD: a vector
     ## if (is.null(dim(npoints))) { npoints <- rep(npoints,D) }
@@ -40,6 +46,7 @@ contourview.list <- function(model,
     
     ## find limits: 'rx' is matrix with min in row 1 and max in row 2
     rx <- apply(X_doe, 2, range)
+    if(!is.null(xlim)) rx <- matrix(xlim,nrow=2,ncol=D)
     rownames(rx) <- c("min", "max") 
     drx <- rx["max", ] - rx["min", ]
     
@@ -63,8 +70,10 @@ contourview.list <- function(model,
     
     ## Each 'id' will produce a RGL plot
     for (id in 1:dim(axis)[1]) {
+        screen(id)
         
         d <- axis[id, ]
+        
         npoints_all <- npoints[d[1]]*npoints[d[2]]
         
         ## ind.nonfix flags the non fixed dims
@@ -81,7 +90,7 @@ contourview.list <- function(model,
         xd2 <- seq(from = xdmin[2], to = xdmax[2], length.out = npoints[2])
         
         x <- data.frame(t(matrix(as.numeric(center), nrow = D, ncol = npoints_all)))
-        names(x) <- names(center)
+        if (!is.null(center)) if(!is.null(names(center))) names(x) <- names(center)
         x[ , d] <- expand.grid(xd1, xd2)
         
         y_mean <- array(0, npoints_all)
@@ -107,7 +116,20 @@ contourview.list <- function(model,
         }
         
         ## plot mean surface two steps required to use alpha = 
-        contour(x = xd1,y = xd2, z = yd_mean,
+        if (isTRUE(add)) {
+            # re-use global settings for limits of this screen
+            xlim <- c(.split.screen.lim[id,1],.split.screen.lim[id,2])
+            ylim <- c(.split.screen.lim[id,3],.split.screen.lim[id,4])
+            contour(x = xd1,y = xd2, z = yd_mean,
+                    xlab = "", ylab = "", 
+                    xlim = xlim, ylim = ylim, zlim = zlim, 
+                    col = col_surf, 
+                    nlevels = nlevels,
+                    levels = pretty(y_mean,nlevels),
+                    ...)
+        } else {
+            .split.screen.lim[id,] <<- matrix(c(xlim[1],xlim[2],ylim[1],ylim[2]),nrow=1)
+            contour(x = xd1,y = xd2, z = yd_mean,
                 xlab = Xname[d[1]], ylab = Xname[d[2]], 
                 xlim = xlim, ylim = ylim, zlim = zlim, 
                 main = title_d,
@@ -115,6 +137,11 @@ contourview.list <- function(model,
                 nlevels = nlevels,
                 levels = pretty(y_mean,nlevels),
                 ...)
+            if(D>2) {
+                abline(v=center[d[1]],col='black',lty=2)
+                abline(h=center[d[2]],col='black',lty=2)
+            }
+        }
         
         ## fading colors for points
         if (D>2) {

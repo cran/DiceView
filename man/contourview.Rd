@@ -2,8 +2,9 @@
 \alias{contourview}
 \alias{contourview,km-method}
 \alias{contourview,list-method}
+\alias{contourview,function-method}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{Plot a contour view of a kriging or modelPredict model, including design points }
+\title{Plot a contour view of a kriging or modelPredict model including design points, or a function.}
 \description{
   Plot a contour view of a kriging or modelPredict model. It is useful for a better understanding of a model behaviour.
 }
@@ -15,10 +16,9 @@ contourview(model, ...)
 
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{model}{an object of class \code{"km"} or a list that can be used
-    in a \code{"modelPredict"} call.}
-  \item{\dots}{other arguments of the \code{contourview.km} or
-    \code{contourview.list} function }
+  \item{model}{an object of class \code{"km"}, a list that can be used
+    in a \code{"modelPredict"} call, or a function.}
+  \item{\dots}{other arguments of the \code{contourview.km}, \code{contourview.list} or \code{contourview.fun} function }
 }
 
 %%\value{ No value.}
@@ -40,5 +40,7 @@ y <- branin(design.fact)
 m1 <- km(design = design.fact, response = y)
 
 contourview(m1)
+
+contourview(branin, dim = 2, add=TRUE)
 
 }
