@@ -1,5 +1,5 @@
-contourview.fun <- function(fun,
-        center = NULL, dim = ifelse(is.null(center),2,length(center)),
+contourview.fun <- function(fun, dim = ifelse(is.null(center),2,length(center)),
+        center = NULL, axis = NULL,
         npoints = 20,
         col = "blue",
         nlevels = 10,
@@ -19,7 +19,12 @@ contourview.fun <- function(fun,
         if (D != 2) stop("Section center in 'section' required for >2-D fun.")
     }
     
+    if (is.null(axis)) {
     axis <- t(combn(D, 2))
+    } else {
+        ## added by YD for the vector case
+        axis <- matrix(axis, ncol = 2)
+    }
     
     if (is.null(mfrow) && (D>2)) {
         nc <- round(sqrt(nrow(axis)))
@@ -63,7 +68,7 @@ contourview.fun <- function(fun,
     
     ## Each 'id' will produce a RGL plot
     for (id in 1:dim(axis)[1]) {
-        if (D>2) screen(id)
+        if (D>2) screen(id, new=!add)
         
         d <- axis[id,]
         
@@ -119,11 +124,11 @@ contourview.fun <- function(fun,
             xlim <- c(.split.screen.lim[id,1],.split.screen.lim[id,2])
             ylim <- c(.split.screen.lim[id,3],.split.screen.lim[id,4])
             contour(x = xd1,y = xd2, z = yd,
-                    xlab = "", ylab = "", 
                     xlim = xlim, ylim = ylim, zlim = zlim, 
                     col = col, 
                     nlevels = nlevels,
                     levels = pretty(y,nlevels),
+                    add=TRUE,
                     ...)
         } else {
             .split.screen.lim[id,] <<- matrix(c(xlim[1],xlim[2],ylim[1],ylim[2]),nrow=1)

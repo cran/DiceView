@@ -1,3 +1,8 @@
+2012-06-27 richet
+
+    * add view(type={"xy","3d","contour","section","section3d"}) entry wrapper
+    * fix call to predict.km by predict
+
 2012-03-26 richet
 
     * add {sectionview,sectionview3d,contourview}.fun 

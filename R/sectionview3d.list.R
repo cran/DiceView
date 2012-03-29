@@ -1,5 +1,6 @@
-sectionview3d.list <- function(model, center = NULL,
-        axis = NULL, npoints = 20,
+sectionview3d.list <- function(model, 
+		center = NULL, axis = NULL, 
+		npoints = 20,
         col_points = "red",
         col_surf = "blue",
         col_needles = NA,
@@ -63,6 +64,7 @@ sectionview3d.list <- function(model, center = NULL,
     for (id in 1:dim(axis)[1]) {
         
         d <- axis[id, ]
+
         npoints_all <- npoints[d[1]]*npoints[d[2]]
         
         ## ind.nonfix flags the non fixed dims

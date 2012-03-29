@@ -1,5 +1,5 @@
 contourview.km <- function(model, type = "UK",
-        center = NULL,
+        center = NULL, axis = NULL,
         npoints = 20,
         col_points = "red",
         col_surf = "blue",
@@ -21,9 +21,14 @@ contourview.km <- function(model, type = "UK",
         if (D != 2) stop("Section center in 'section' required for >2-D model.")
     }
     
-    axis <- t(combn(D, 2))
+    if (is.null(axis)) {
+        axis <- t(combn(D, 2))
+    } else {
+        ## added by YD for the vector case
+        axis <- matrix(axis, ncol = 2)
+    }
     
-    if (is.null(mfrow) & D>2) {
+    if (is.null(mfrow) & (D>2)) {
         nc <- round(sqrt(nrow(axis)))
         nl <- ceiling(nrow(axis)/nc)
         mfrow <- c(nc, nl)
@@ -83,7 +88,7 @@ contourview.km <- function(model, type = "UK",
     
     ## Each 'id' will produce a RGL plot
     for (id in 1:dim(axis)[1]) {
-        if (D>2) screen(id)
+        if (D>2) screen(id, new=!add)
         
         d <- axis[id,]
         
@@ -116,7 +121,7 @@ contourview.km <- function(model, type = "UK",
         for (i1 in 1:npoints[1]) {
             for (i2 in 1:npoints[2]) {
                 i <- i1 + (i2-1) * npoints[1]
-                y <- predict.km(model, type = type, newdata = (x[i,]), checkNames=FALSE)
+                y <- predict(model, type = type, newdata = (x[i,]), checkNames=FALSE)
                 y_mean[i] <- yscale * y$mean
                 y_sd[i] <- abs(yscale) * y$sd
                 yd_mean[i1, i2] <- yscale * y$mean
@@ -141,11 +146,11 @@ contourview.km <- function(model, type = "UK",
             xlim <- c(.split.screen.lim[id,1],.split.screen.lim[id,2])
             ylim <- c(.split.screen.lim[id,3],.split.screen.lim[id,4])
             contour(x = xd1,y = xd2, z = yd_mean,
-                    xlab = "", ylab = "", 
                     xlim = xlim, ylim = ylim, zlim = zlim, 
                     col = col_surf,  lty = 3,
                     nlevels = nlevels,
                     levels = pretty(y_mean,nlevels),
+                    add=TRUE,
                     ...)
         } else {
             .split.screen.lim[id,] <<- matrix(c(xlim[1],xlim[2],ylim[1],ylim[2]),nrow=1)

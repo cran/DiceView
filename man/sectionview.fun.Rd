@@ -8,7 +8,8 @@
 }
 
 \usage{
-sectionview.fun(fun, center = NULL, dim = ifelse(is.null(center),1,length(center)),
+sectionview.fun(fun, dim = ifelse(is.null(center),1,length(center)),
+               center = NULL, axis = NULL,
                npoints = 100,
                col_surf = "blue",
                mfrow = NULL, 
@@ -24,6 +25,11 @@ sectionview.fun(fun, center = NULL, dim = ifelse(is.null(center),1,length(center
   \item{center}{
     optional coordinates (as a list or data frame) of the
     center of the section  view if the model's dimension is > 1.
+  }
+  \item{axis}{
+    optional matrix of 1-axis combinations to plot, one by
+    row. The value \code{NULL} leads to all possible combinations i.e.
+    \code{1:D}.
   }
   \item{npoints}{
     an optional number of points to discretize plot of

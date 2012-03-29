@@ -8,7 +8,8 @@
 }
 
 \usage{
-sectionview.list(model, center=NULL,
+sectionview.list(model,
+                 center=NULL, axis = NULL,
                  npoints = 100,
                  col_points = "red",
                  col_surf = "blue",
@@ -27,6 +28,11 @@ sectionview.list(model, center=NULL,
     function of the \pkg{DiceEval} package.}
   \item{center}{optional coordinates (as a list or data frame) of the
     center of the section view if the model's dimension is > 1.}
+  \item{axis}{
+    optional matrix of 1-axis combinations to plot, one by
+    row. The value \code{NULL} leads to all possible combinations i.e.
+    \code{1:D}.
+  }
   \item{npoints}{
     an optional number of points to discretize plot of response surface
     and  uncertainties.

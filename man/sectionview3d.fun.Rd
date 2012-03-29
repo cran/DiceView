@@ -7,7 +7,8 @@
 }
 
 \usage{
-sectionview3d.fun(fun, center = NULL,  dim = ifelse(is.null(center),2,length(center)), axis = NULL,
+sectionview3d.fun(fun, dim = ifelse(is.null(center),2,length(center)), 
+                 center = NULL, axis = NULL,
                  npoints = 20,
                  col = "blue",
                  Xname = NULL, yname = NULL, Xscale = 1, yscale = 1,

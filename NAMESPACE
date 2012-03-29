@@ -2,7 +2,8 @@ import("graphics")
 import("DiceKriging","DiceEval")
 ## importFrom("graphics", plot)
 
-export(sectionview.km,
+export(view,
+       sectionview.km,
        sectionview3d.km,
        contourview.km,
        sectionview.list,

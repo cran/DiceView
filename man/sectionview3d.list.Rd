@@ -7,7 +7,8 @@
 }
 
 \usage{
-sectionview3d.list(model, center = NULL, axis = NULL,
+sectionview3d.list(model, 
+                   center = NULL, axis = NULL,
                    npoints = 20,
                    col_points = "red",
                    col_surf = "blue",

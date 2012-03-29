@@ -7,7 +7,8 @@
 }
 
 \usage{
-contourview.fun(fun, center = NULL, dim = ifelse(is.null(center),2,length(center)),
+contourview.fun(fun, dim = ifelse(is.null(center),2,length(center)),
+                 center = NULL, axis = NULL,
                  npoints = 20,
                  col = "blue",
                  nlevels = 10,
@@ -24,6 +25,11 @@ contourview.fun(fun, center = NULL, dim = ifelse(is.null(center),2,length(center
   \item{center}{
     optional coordinates (as a list or data frame) of the
     center of the section view if the model's dimension is > 2.
+  }
+  \item{axis}{
+    optional matrix of 2-axis combinations to plot, one by
+    row. The value \code{NULL} leads to all possible combinations i.e.
+    \code{choose(D, 2)}.
   }
   \item{npoints}{
     an optional number of points to discretize plot of

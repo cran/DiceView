@@ -8,7 +8,8 @@
 }
 
 \usage{
-contourview.km(model, type = "UK", center = NULL,
+contourview.km(model, type = "UK", 
+                 center = NULL, axis = NULL,
                  npoints = 20,
                  col_points = "red",
                  col_surf = "blue",
@@ -27,6 +28,11 @@ contourview.km(model, type = "UK", center = NULL,
   \item{center}{
     optional coordinates (as a list or data frame) of the
     center of the section view if the model's dimension is > 2.
+  }
+  \item{axis}{
+    optional matrix of 2-axis combinations to plot, one by
+    row. The value \code{NULL} leads to all possible combinations i.e.
+    \code{choose(D, 2)}.
   }
   \item{npoints}{
     an optional number of points to discretize plot of
@@ -87,6 +93,7 @@ contourview.km(model, type = "UK", center = NULL,
 
 \keyword{models}
 \examples{
+
 ## A 2D example - Branin-Hoo function. See DiceKriging package manual 
 ## a 16-points factorial design, and the corresponding response
 d <- 2; n <- 16
@@ -107,5 +114,8 @@ contourview(m1, col_points = "firebrick", col_surf = "SpringGreen2")
 ## change colors,  use finer grid and add needles
 contourview(m1, npoints = c(50, 30), col_points = "orange",
   col_surf = "SpringGreen2") 
+
+## Display reference function
+contourview(branin,dim=2,add=TRUE,col='red')
 
 }

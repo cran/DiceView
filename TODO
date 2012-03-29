@@ -12,3 +12,5 @@
  The matrix could be reduced to a p vector for a single-index
  model. The sections would then be specified with the t(B) %*% center 
  vector in dim d < p.  
+ 
+ o [YR] Add a ggplot2 wrapper view.

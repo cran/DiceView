@@ -1,6 +1,5 @@
-sectionview3d.fun <- function(fun,
-        center = NULL,dim = ifelse(is.null(center),2,length(center)),
-        axis = NULL,
+sectionview3d.fun <- function(fun,dim = ifelse(is.null(center),2,length(center)),
+        center = NULL, axis = NULL,
         npoints = 20,
         col = "blue",
         Xname = NULL, yname = NULL,
@@ -57,6 +56,7 @@ sectionview3d.fun <- function(fun,
     for (id in 1:dim(axis)[1]) {
         
         d <- axis[id,]
+
         npoints_all <- npoints[d[1]]*npoints[d[2]]
         
         ## ind.nonfix flags the non fixed dims

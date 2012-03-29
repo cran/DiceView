@@ -8,7 +8,8 @@
 }
 
 \usage{
-sectionview.km(model, type = "UK", center = NULL,
+sectionview.km(model, type = "UK", 
+               center = NULL, axis = NULL,
                npoints = 100,
                col_points = "red",
                col_surf = "blue",
@@ -28,6 +29,11 @@ sectionview.km(model, type = "UK", center = NULL,
   \item{center}{
     optional coordinates (as a list or data frame) of the
     center of the section  view if the model's dimension is > 1.
+  }
+    \item{axis}{
+    optional matrix of 1-axis combinations to plot, one by
+    row. The value \code{NULL} leads to all possible combinations i.e.
+    \code{1:D}.
   }
   \item{npoints}{
     an optional number of points to discretize plot of
@@ -101,5 +107,8 @@ y <- branin(design.fact)
 m1 <- km(design = design.fact, response = y)
 
 sectionview(m1, center = c(.333, .333))
+
+## Display reference function
+sectionview(branin,dim=2,center=c(.333, .333),add=TRUE,col='red')
 
 }

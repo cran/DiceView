@@ -1,18 +1,18 @@
 sectionview.km <- function(model, type = "UK",
-        center = NULL,
-        npoints = 100,
-        col_points = "red",
-        col_surf = "blue",
-        conf_lev = c(0.5, 0.8, 0.9, 0.95, 0.99),
-        conf_blend = NULL,
-        bg_blend = 5,
-        mfrow = NULL,
-        Xname = NULL, yname = NULL,
-        Xscale = 1, yscale = 1,
-        xlim = NULL, ylim = NULL,
-        title = NULL,
-        add = FALSE,
-        ...) {
+                           center = NULL, axis = NULL,
+                           npoints = 100,
+                           col_points = "red",
+                           col_surf = "blue",
+                           conf_lev = c(0.5, 0.8, 0.9, 0.95, 0.99),
+                           conf_blend = NULL,
+                           bg_blend = 5,
+                           mfrow = NULL,
+                           Xname = NULL, yname = NULL,
+                           Xscale = 1, yscale = 1,
+                           xlim = NULL, ylim = NULL,
+                           title = NULL,
+                           add = FALSE,
+                           ...) {
     
     D <- model@d
     
@@ -20,8 +20,15 @@ sectionview.km <- function(model, type = "UK",
         if (D != 1) stop("Section center in 'section' required for >1-D model.")
     }
     
+    if (is.null(axis)) {
+        axis <- matrix(1:D, ncol = 1)
+    } else {
+        ## added by YD for the vector case
+        axis <- matrix(axis, ncol = 1)
+    }
+    
     if (is.null(conf_blend) ||
-            length(conf_blend) != length(conf_lev))
+        length(conf_blend) != length(conf_lev))
         conf_blend <- rep(0.5/length(conf_lev), length(conf_lev))
     
     if (is.null(mfrow) && (D>1)) {
@@ -72,8 +79,10 @@ sectionview.km <- function(model, type = "UK",
     ## try to find a good formatted value 'fcenter' for 'center'
     fcenter <- tryFormat(x = center, drx = drx)
     
-    for (d in 1:D) {
-        if (D>1) screen(d)
+    for (id in 1:dim(axis)[1]) {
+        if (D>1) screen(id, new=!add)
+        
+        d <- axis[id,]        
         
         xdmin <- rx["min", d]
         xdmax <- rx["max", d]
@@ -89,7 +98,7 @@ sectionview.km <- function(model, type = "UK",
         y_sd <- array(0, npoints)
         
         for (i in 1:npoints) {
-            y <- predict.km(model, type = type, newdata = (x[i, ]), checkNames=FALSE)
+            y <- predict(model, type = type, newdata = (x[i, ]), checkNames=FALSE)
             y_mean[i] <- yscale * y$mean
             y_sd[i] <- abs(yscale) * y$sd
         }
@@ -107,22 +116,28 @@ sectionview.km <- function(model, type = "UK",
             # re-use global settings for limits of this screen
             xlim <- c(.split.screen.lim[d,1],.split.screen.lim[d,2])
             ylim <- c(.split.screen.lim[d,3],.split.screen.lim[d,4])
-            plot(xd, y_mean,
-                    xlab = "", ylab = "",
-                    xlim = xlim, ylim = ylim, 
-                    type = "l", lty = 3,
-                    col = col_surf,
-                    add = TRUE,
-                    ...)
+            if (D>1) {
+                plot(xd, y_mean,
+                     type = "l", lty = 3,
+                     xlim = xlim, ylim = ylim,
+                     col = col_surf,
+                     ...)
+            } else { # not using screen(), so need for a non reset plotting method
+                lines(xd, y_mean,
+                      lty = 3,
+                      xlim = xlim, ylim = ylim,
+                      col = col_surf,
+                      ...)
+            }
         } else {
             .split.screen.lim[d,] <<- matrix(c(xlim[1],xlim[2],ylim[1],ylim[2]),nrow=1)
             plot(xd, y_mean,
-                xlab = Xname[d], ylab = yname,
-                xlim = xlim, ylim = ylim, 
-                main = title_d,
-                type = "l", lty = 3,
-                col = col_surf,
-                ...)
+                 xlab = Xname[d], ylab = yname,
+                 xlim = xlim, ylim = ylim, 
+                 main = title_d,
+                 type = "l", lty = 3,
+                 col = col_surf,
+                 ...)
             if(D>1) abline(v=center[d],col='black',lty=2)
         }
         
@@ -133,7 +148,7 @@ sectionview.km <- function(model, type = "UK",
             
             polygon(c(xd,rev(xd)),
                     c(qnorm((1+conf_lev[p])/2, y_mean, y_sd),
-                            rev(qnorm((1-conf_lev[p])/2, y_mean, y_sd))),
+                      rev(qnorm((1-conf_lev[p])/2, y_mean, y_sd))),
                     col = colp,
                     border = NA)
             
@@ -143,12 +158,12 @@ sectionview.km <- function(model, type = "UK",
         if (D>1) {
             
             xrel <- scale(x = as.matrix(X_doe),
-                    center = center,
-                    scale = rx["max", ] - rx["min", ])
+                          center = center,
+                          scale = rx["max", ] - rx["min", ])
             
             alpha <- apply(X = xrel[ , -d, drop = FALSE],
-                    MARGIN = 1,
-                    FUN = function(x) (1 - (sqrt(sum(x^2)/D)))^bg_blend)
+                           MARGIN = 1,
+                           FUN = function(x) (1 - (sqrt(sum(x^2)/D)))^bg_blend)
             
         } else {
             alpha <- rep(1, n)
@@ -161,19 +176,19 @@ sectionview.km <- function(model, type = "UK",
             ## cat("faded colors\n"); print(col1)
             
             points(X_doe[,d], y_doe,
-                    col = col1,
-                    ## col = rgb(1, 1-alpha, 1-alpha, alpha),
-                    pch = 20)
+                   col = col1,
+                   ## col = rgb(1, 1-alpha, 1-alpha, alpha),
+                   pch = 20)
         }
         
         for (p in 1:length(conf_lev)) {
             
             for (i in 1:n) {
                 lines(c(X_doe[i,d],X_doe[i,d]),
-                        c(qnorm((1+conf_lev[p])/2, y_doe[i], sdy_doe[i]),
-                                qnorm((1-conf_lev[p])/2, y_doe[i], sdy_doe[i])),
-                        col = rgb(1,1-alpha[i], 1-alpha[i], alpha[i]*conf_blend[p]),
-                        lwd = 5, lend = 1)
+                      c(qnorm((1+conf_lev[p])/2, y_doe[i], sdy_doe[i]),
+                        qnorm((1-conf_lev[p])/2, y_doe[i], sdy_doe[i])),
+                      col = rgb(1,1-alpha[i], 1-alpha[i], alpha[i]*conf_blend[p]),
+                      lwd = 5, lend = 1)
             }
             
         }

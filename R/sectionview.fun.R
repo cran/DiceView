@@ -1,14 +1,14 @@
-sectionview.fun <- function(fun,
-        center = NULL,dim = ifelse(is.null(center),1,length(center)),
-        npoints = 100,
-        col_surf = "blue",
-        mfrow = NULL,
-        Xname = NULL, yname = NULL,
-        Xscale = 1, yscale = 1,
-        xlim = c(0,1), ylim = NULL,
-        title = NULL,
-        add = FALSE,
-        ...) {
+sectionview.fun <- function(fun, dim = ifelse(is.null(center),1,length(center)),
+                            center = NULL, axis = NULL,
+                            npoints = 100,
+                            col_surf = "blue",
+                            mfrow = NULL,
+                            Xname = NULL, yname = NULL,
+                            Xscale = 1, yscale = 1,
+                            xlim = c(0,1), ylim = NULL,
+                            title = NULL,
+                            add = FALSE,
+                            ...) {
     
     D <- dim
     
@@ -16,11 +16,13 @@ sectionview.fun <- function(fun,
         if (D != 1) stop("Section center in 'section' required for >1-D fun.")
     }
     
-    print(D)
-    print(D>1)
-    print(mfrow)
-    print(is.null(mfrow))
-    print(is.null(mfrow) && (D>1))
+    if (is.null(axis)) {
+        axis <- matrix(1:D, ncol = 1)
+    } else {
+        ## added by YD for the vector case
+        axis <- matrix(axis, ncol = 1)
+    }
+    
     if (is.null(mfrow) && (D>1)) {
         nc <- round(sqrt(D))
         nl <- ceiling(D/nc)
@@ -48,8 +50,10 @@ sectionview.fun <- function(fun,
     ## try to find a good formatted value 'fcenter' for 'center'
     fcenter <- tryFormat(x = center, drx = drx)
     
-    for (d in 1:D) {
-        if (D>1) screen(d)
+    for (id in 1:dim(axis)[1]) {
+        if (D>1) screen(id, new=!add)
+        
+        d <- axis[id,]        
         
         xdmin <- rx["min", d]
         xdmax <- rx["max", d]
@@ -84,22 +88,27 @@ sectionview.fun <- function(fun,
             # re-use global settings for limits of this screen
             xlim <- c(.split.screen.lim[d,1],.split.screen.lim[d,2])
             ylim <- c(.split.screen.lim[d,3],.split.screen.lim[d,4])
-            plot(xd, y,
-                    xlab = "", ylab = "",
-                    xlim = xlim, ylim = ylim, 
-                    type = "l",
-                    col = col_surf,
-                    add = TRUE,
-                    ...)
+            if (D>1) {
+                plot(xd, y,
+                     xlim=xlim, ylim=ylim,
+                     type = "l",
+                     col = col_surf,
+                     ...)
+            } else { # not using screen(), so need for a non reset plotting method
+                lines(xd, y,
+                      xlim=xlim, ylim=ylim,
+                      col = col_surf,
+                      ...)
+            }
         } else {
             .split.screen.lim[d,] <<- matrix(c(xlim[1],xlim[2],ylim[1],ylim[2]),nrow=1)
             plot(xd, y,
-                xlab = Xname[d], ylab = yname,
-                xlim = xlim, ylim = ylim, 
-                main = title_d,
-                type = "l",
-                col = col_surf,
-                ...)
+                 xlab = Xname[d], ylab = yname,
+                 xlim = xlim, ylim = ylim, 
+                 main = title_d,
+                 type = "l",
+                 col = col_surf,
+                 ...)
             if(D>1) abline(v=center[d],col='black',lty=2)
         }
     }
