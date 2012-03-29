@@ -24,15 +24,17 @@ sectionview.km <- function(model, type = "UK",
             length(conf_blend) != length(conf_lev))
         conf_blend <- rep(0.5/length(conf_lev), length(conf_lev))
     
-    if (is.null(mfrow)) {
+    if (is.null(mfrow) && (D>1)) {
         nc <- round(sqrt(D))
         nl <- ceiling(D/nc)
         mfrow <- c(nc, nl)
     }
     
     if (!isTRUE(add)) {
-        close.screen( all.screens = TRUE )
-        split.screen(figs = mfrow)
+        if (D>1) {
+            close.screen( all.screens = TRUE )
+            split.screen(figs = mfrow)
+        }
         .split.screen.lim <<- matrix(NaN,ncol=4,nrow=D) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
     }
     
@@ -71,7 +73,7 @@ sectionview.km <- function(model, type = "UK",
     fcenter <- tryFormat(x = center, drx = drx)
     
     for (d in 1:D) {
-        screen(d)
+        if (D>1) screen(d)
         
         xdmin <- rx["min", d]
         xdmax <- rx["max", d]
@@ -87,7 +89,7 @@ sectionview.km <- function(model, type = "UK",
         y_sd <- array(0, npoints)
         
         for (i in 1:npoints) {
-            y <- predict.km(model, type = type, newdata = (x[i, ]))
+            y <- predict.km(model, type = type, newdata = (x[i, ]), checkNames=FALSE)
             y_mean[i] <- yscale * y$mean
             y_sd[i] <- abs(yscale) * y$sd
         }

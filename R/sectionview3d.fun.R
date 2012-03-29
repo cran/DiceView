@@ -1,5 +1,5 @@
 sectionview3d.fun <- function(fun,
-        center = NULL,dim = length(center),
+        center = NULL,dim = ifelse(is.null(center),2,length(center)),
         axis = NULL,
         npoints = 20,
         col = "blue",

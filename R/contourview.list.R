@@ -23,15 +23,17 @@ contourview.list <- function(model,
     
     axis <- t(combn(D, 2))
     
-    if (is.null(mfrow)) {
+    if (is.null(mfrow) && (D>2)) {
         nc <- round(sqrt(nrow(axis)))
         nl <- ceiling(nrow(axis)/nc)
         mfrow <- c(nc, nl)
     }
     
     if (!isTRUE(add)) {
-        close.screen( all.screens = TRUE )
-        split.screen(figs = mfrow)
+        if (D>2) {
+            close.screen( all.screens = TRUE )
+            split.screen(figs = mfrow)
+        }
         .split.screen.lim <<- matrix(NaN,ncol=4,nrow=D) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
     }
     
@@ -70,7 +72,7 @@ contourview.list <- function(model,
     
     ## Each 'id' will produce a RGL plot
     for (id in 1:dim(axis)[1]) {
-        screen(id)
+        if (D>2) screen(id)
         
         d <- axis[id, ]
         

@@ -18,15 +18,17 @@ sectionview.list <- function(model,
         if (D != 1) stop("Section center in 'section' required for >1-D model.")
     }
     
-    if (is.null(mfrow)) {
+    if (is.null(mfrow) && (D>1)) {
         nc <- round(sqrt(D))
         nl <- ceiling(D/nc)
         mfrow <- c(nc,nl)
     }
     
     if (!isTRUE(add)) {
-        close.screen( all.screens = TRUE )
-        split.screen(figs = mfrow)
+        if (D>1) {
+            close.screen( all.screens = TRUE )
+            split.screen(figs = mfrow)
+        }
         .split.screen.lim <<- matrix(NaN,ncol=4,nrow=D) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
     }
     
@@ -57,7 +59,7 @@ sectionview.list <- function(model,
     fcenter <- tryFormat(x = center, drx = drx)
     
     for (d in 1:D) {
-        screen(d)
+        if (D>1) screen(d)
         
         xdmin <- rx["min", d]
         xdmax <- rx["max", d]

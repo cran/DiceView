@@ -1,14 +1,13 @@
 \name{contourview.fun}
 \alias{contourview.fun}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{Plot a contour view of a kriging model, including design points }
+\title{Plot a contour view of a function }
 \description{
-  Plot a contour view of a kriging model: mean response surface, fitted points and
-  confidence surfaces. Provide a better understanding of the kriging model behaviour.
+  Plot a contour view of a function. Provide a better understanding of the model behaviour.
 }
 
 \usage{
-contourview.fun(fun, center = NULL, dim = length(center),
+contourview.fun(fun, center = NULL, dim = ifelse(is.null(center),2,length(center)),
                  npoints = 20,
                  col = "blue",
                  nlevels = 10,

@@ -116,7 +116,7 @@ sectionview3d.km <- function(model, type = "UK",
         for (i1 in 1:npoints[1]) {
             for (i2 in 1:npoints[2]) {
                 i <- i1 + (i2-1) * npoints[1]
-                y <- predict.km(model, type = type, newdata = (x[i,]))
+                y <- predict.km(model, type = type, newdata = (x[i,]), checkNames=FALSE)
                 y_mean[i] <- yscale * y$mean
                 y_sd[i] <- abs(yscale) * y$sd
                 yd_mean[i1, i2] <- yscale * y$mean

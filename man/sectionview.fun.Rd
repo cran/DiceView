@@ -1,14 +1,14 @@
 \name{sectionview.fun}
 \alias{sectionview.fun}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{Plot section views of a kriging model, including design points}
+\title{Plot section views of a function}
 \description{
-  Plot one section view per dimension of a kriging model thus providing
-  a better understanding of the model behaviour including uncertainty.
+  Plot one section view per dimension of a function thus providing
+  a better understanding of the model behaviour.
 }
 
 \usage{
-sectionview.fun(fun, center = NULL, dim = length(center),
+sectionview.fun(fun, center = NULL, dim = ifelse(is.null(center),1,length(center)),
                npoints = 100,
                col_surf = "blue",
                mfrow = NULL, 

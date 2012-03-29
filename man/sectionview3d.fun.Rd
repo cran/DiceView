@@ -1,14 +1,13 @@
 \name{sectionview3d.fun}
 \alias{sectionview3d.fun}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{Plot a 3-D (using RGL) view of a kriging model, including design points }
+\title{Plot a 3-D (using RGL) view of a function }
 \description{
-  Plot a 3-D view of a kriging model: mean response surface, fitted points and
-  confidence surfaces. Provide a better understanding of the kriging model behaviour.
+  Plot a 3-D view of a function. Provide a better understanding of the model behaviour.
 }
 
 \usage{
-sectionview3d.fun(fun, center = NULL,  dim = length(center), axis = NULL,
+sectionview3d.fun(fun, center = NULL,  dim = ifelse(is.null(center),2,length(center)), axis = NULL,
                  npoints = 20,
                  col = "blue",
                  Xname = NULL, yname = NULL, Xscale = 1, yscale = 1,
