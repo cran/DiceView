@@ -1,4 +1,4 @@
-#' Plot section views of a kriging model, including design points
+#' @title Plot section views of a kriging model, including design points
 #' @description Plot one section view per dimension of a kriging model thus providing a better understanding of the model behaviour including uncertainty.
 #' @param model an object of class "km".
 #' @param type the kriging type to use for model prediction.
@@ -24,7 +24,6 @@
 #' @importFrom DiceKriging branin
 #' @method sectionview km
 #' @docType methods
-#' @rdname km-methods
 #' @export
 #' @details A multiple rows/columns plot is produced. Experimental points are plotted with fading colors. Points that fall in the specified section (if any) have the color specified \code{col_points} while points far away from the center have shaded versions of the same color. The amount of fading is determined using the Euclidean distance between the plotted point and \code{center}.
 #' @author Yann Richet, IRSN
@@ -145,11 +144,14 @@ sectionview.km <- function(model, type = "UK",
         y_mean <- array(0, npoints)
         y_sd <- array(0, npoints)
 
-        for (i in 1:npoints) {
-            y <- predict(model, type = type, newdata = (x[i, ]), checkNames=FALSE)
-            y_mean[i] <- yscale * y$mean
-            y_sd[i] <- abs(yscale) * y$sd
-        }
+        #for (i in 1:npoints) {
+        #    y <- predict(model, type = type, newdata = (x[i, ]), checkNames=FALSE)
+        #    y_mean[i] <- yscale * y$mean
+        #    y_sd[i] <- abs(yscale) * y$sd
+        #}
+        y <- predict(model, type = type, newdata = x, checkNames=FALSE)
+        y_mean <- as.numeric(yscale * y$mean)
+        y_sd <- as.numeric(abs(yscale) * y$sd)
 
         if (is.null(title)){
             if (D>1) {

@@ -1,4 +1,4 @@
-#' Plot a section view of a model, including design points
+#' @title Plot a section view of a model, including design points
 #' @description Plot one section view per dimension of a surrogate model. It is useful for a better understanding of a model behaviour.
 #' @param model a list that can be used as model with the \code{modelPredict} function of the \pkg{DiceEval} package.
 #' @param center optional coordinates (as a list or data frame) of the center of the section view if the model's dimension is > 1.
@@ -21,7 +21,6 @@
 #' @importFrom DiceKriging branin
 #' @method sectionview list
 #' @docType methods
-#' @rdname list-methods
 #' @export
 #' @details A multiple rows/columns plot is produced. Experimental points are plotted with fading colors. Points that fall in the specified section (if any) have the color specified \code{col_points} while points far away from the center have shaded versions of the same color. The amount of fading is determined using the Euclidean distance between the plotted point and \code{center}.
 #' @author Yann Richet, IRSN

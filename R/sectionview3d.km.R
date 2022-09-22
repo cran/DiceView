@@ -1,4 +1,4 @@
-#' Plot a 3-D (using RGL) view of a kriging model, including design points
+#' @title Plot a 3-D (using RGL) view of a kriging model, including design points
 #' @description Plot a 3-D view of a kriging model: mean response surface, fitted points and confidence surfaces. Provide a better understanding of the kriging model behaviour.
 #' @param model an object of class \code{"km"}.
 #' @param type the kriging type to use for model prediction.
@@ -19,6 +19,7 @@
 #' @param yscale an optional factor to scale y.
 #' @param title an optional overload of main title.
 #' @param add to print graphics on an existing window.
+#' @param engine3d 3D view package to use. "rgl" if available, otherwise "scatterplot3d" by default.
 #' @param ... further arguments passed to the first call of \code{plot3d}.
 #' @importFrom DiceKriging predict
 # @importFrom rgl surface3d
@@ -29,7 +30,6 @@
 #' @importFrom DiceKriging branin
 #' @method sectionview3d km
 #' @docType methods
-#' @rdname km-methods
 #' @export
 #' @details Experimental points are plotted with fading colors. Points that fall in the specified section (if any) have the color specified \code{col_points} while points far away from the center have shaded versions of the same color. The amount of fading is determined using the Euclidean distance between the plotted point and \code{center}. The variables chosen with their number are to be found in the \code{X} slot of the model. Thus they are 'spatial dimensions' but not 'trend variables'.
 #' @author Yann Richet, IRSN
@@ -48,16 +48,10 @@
 #' if (!exists("m1"))
 #' m1 <- km(design = design.fact, response = y)
 #'
-#' ## the same as sectionview3d.km
-#' sectionview3d(m1)
-#'
-#' \dontrun{
-#' ## change colors
-#' sectionview3d(m1, col_points = "firebrick", col_surf = "SpringGreen2")
-#'
-#' ## change colors,  use finer grid and add needles
-#' sectionview3d(m1, npoints = c(50, 30), col_points = "orange",
-#'   col_surf = "SpringGreen2", col_needles = "firebrick")
+#' if (identical(Sys.getenv("NOT_CRAN"), "true")) { # too long for CRAN on Windows
+#'   ## change colors,  use finer grid and add needles
+#'   sectionview3d(m1, npoints = c(30, 15), col_points = "orange",
+#'     col_surf = "SpringGreen2", col_needles = "firebrick")
 #' }
 sectionview3d.km <- function(model, type = "UK",
         center = NULL, axis = NULL,
@@ -73,8 +67,9 @@ sectionview3d.km <- function(model, type = "UK",
         xlim = NULL, ylim = NULL,
         title = NULL,
         add = FALSE,
+        engine3d = NULL,
         ...) {
-    if (is.null(load3d())) return()
+    if (is.null(load3d(engine3d))) return()
 
     D <- model@d
     if (D == 1) stop("for a model with dim 1, use 'sectionview'")
@@ -172,16 +167,21 @@ sectionview3d.km <- function(model, type = "UK",
         ## compute predictions for km.
         ## Note that 'sd' is actually a 'se' (standard error)
 
-        for (i1 in 1:npoints[1]) {
-            for (i2 in 1:npoints[2]) {
-                i <- i1 + (i2-1) * npoints[1]
-                y <- predict(model, type = type, newdata = (x[i,]), checkNames=FALSE)
-                y_mean[i] <- yscale * y$mean
-                y_sd[i] <- abs(yscale) * y$sd
-                yd_mean[i1, i2] <- yscale * y$mean
-                yd_sd[i1, i2] <- abs(yscale) * y$sd
-            }
-        }
+        #for (i1 in 1:npoints[1]) {
+        #    for (i2 in 1:npoints[2]) {
+        #        i <- i1 + (i2-1) * npoints[1]
+        #        y <- predict(model, type = type, newdata = (x[i,]), checkNames=FALSE)
+        #        y_mean[i] <- yscale * y$mean
+        #        y_sd[i] <- abs(yscale) * y$sd
+        #        yd_mean[i1, i2] <- yscale * y$mean
+        #        yd_sd[i1, i2] <- abs(yscale) * y$sd
+        #    }
+        #}
+        y <- predict(model, type = type, newdata = x, checkNames=FALSE)
+        y_mean <- as.numeric(yscale * y$mean)
+        y_sd <- as.numeric(abs(yscale) * y$sd)
+        yd_mean <- matrix(y_mean,ncol=npoints[1],nrow=npoints[2])
+        yd_sd <- matrix(y_sd,ncol=npoints[1],nrow=npoints[2])
 
         ## Note that 'ind.nonfix is used here and later
         if (is.null(title)){

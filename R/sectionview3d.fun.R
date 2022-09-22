@@ -1,6 +1,7 @@
-#' Plot a 3-D (using RGL) view of a function
+#' @title Plot a 3-D (using RGL) view of a function
 #' @description Plot a 3-D view of a function. Provide a better understanding of the model behaviour.
 #' @param model an object of class \code{"function"}.
+#' @param vectorized is model vectorized? (defaults to FALSE)
 #' @param dim the dimension of fun arguments.
 #' @param center optional coordinates (as a list or data frame) of the center of the section view if the model's dimension is > 2.
 #' @param axis optional matrix of 2-axis combinations to plot, one by row. The value \code{NULL} leads to all possible combinations i.e. \code{choose(D, 2)}.
@@ -14,6 +15,7 @@
 #' @param yscale an optional factor to scale y.
 #' @param title an optional overload of main title.
 #' @param add to print graphics on an existing window.
+#' @param engine3d 3D view package to use. "rgl" if available, otherwise "scatterplot3d" by default.
 #' @param ... further arguments passed to the first call of \code{plot3d}.
 #' @import utils
 # @importFrom rgl surface3d
@@ -24,14 +26,16 @@
 #' @importFrom DiceKriging branin
 #' @method sectionview3d function
 #' @docType methods
-#' @rdname function-methods
 #' @export
 #' @author Yann Richet, IRSN
 #' @seealso \code{\link{sectionview}}
 #' @examples
 #' ## A 2D example - Branin-Hoo function.
-#' sectionview3d(branin,dim = 2)
-sectionview3d.function <- function(model,dim = ifelse(is.null(center),2,length(center)),
+#' if (identical(Sys.getenv("NOT_CRAN"), "true")) { # too long for CRAN on Windows
+#'   sectionview3d(branin,dim = 2)
+#' }
+sectionview3d.function <- function(model, vectorized=FALSE,
+                                   dim = ifelse(is.null(center),2,length(center)),
         center = NULL, axis = NULL,
         npoints = 20,
         col = "blue",
@@ -40,10 +44,14 @@ sectionview3d.function <- function(model,dim = ifelse(is.null(center),2,length(c
         xlim = c(0,1), ylim = NULL,
         title = NULL,
         add = FALSE,
+        engine3d = NULL,
         ...) {
-    if (is.null(load3d())) return()
+    if (is.null(load3d(engine3d))) return()
 
-    fun = model
+    if (vectorized)
+        fun = model
+    else
+        fun = Vectorize.function(model,dim)
 
     D <- dim
     if (D == 1) stop("for a model with dim 1, use 'sectionview'")
@@ -114,13 +122,15 @@ sectionview3d.function <- function(model,dim = ifelse(is.null(center),2,length(c
         ## compute predictions for km.
         ## Note that 'sd' is actually a 'se' (standard error)
 
-        for (i1 in 1:npoints[1]) {
-            for (i2 in 1:npoints[2]) {
-                i <- i1 + (i2-1) * npoints[1]
-                y[i] <- as.numeric(yscale * fun(x[i,]))
-                yd[i1, i2] <- y[i]
-            }
-        }
+        #for (i1 in 1:npoints[1]) {
+        #    for (i2 in 1:npoints[2]) {
+        #        i <- i1 + (i2-1) * npoints[1]
+        #        y[i] <- as.numeric(yscale * fun(x[i,]))
+        #        yd[i1, i2] <- y[i]
+        #    }
+        #}
+        y <- as.numeric(yscale * fun(x))
+        yd <- matrix(y,ncol=npoints[1],nrow=npoints[2])
 
         ## Note that 'ind.nonfix is used here and later
         if (is.null(title)){

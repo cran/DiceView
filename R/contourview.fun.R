@@ -1,5 +1,6 @@
-#' Plot a contour view of a function.
+#' @title Plot a contour view of a function.
 #' @param model an object of class \code{"function"}.
+#' @param vectorized is model vectorized? (defaults to FALSE)
 #' @param dim the dimension of fun arguments.
 #' @param center optional coordinates (as a list or data frame) of the center of the section view if the model's dimension is > 2.
 #' @param axis optional matrix of 2-axis combinations to plot, one by row. The value \code{NULL} leads to all possible combinations i.e. \code{choose(D, 2)}.
@@ -21,8 +22,7 @@
 #' @import graphics
 #' @importFrom DiceKriging branin
 #' @method contourview function
-#' @docType methods
-#' @rdname function-methods
+#' @aliases contourview,function,function-method
 #' @export
 #' @details Experimental points are plotted with fading colors. Points that fall in the specified section (if any) have the color specified \code{col_points} while points far away from the center have shaded versions of the same color. The amount of fading is determined using the Euclidean distance between the plotted point and \code{center}. The variables chosen with their number are to be found in the \code{X} slot of the model. Thus they are 'spatial dimensions' but not 'trend variables'.
 #' @author Yann Richet, IRSN
@@ -31,7 +31,8 @@
 #' @examples
 #' ## A 2D example - Branin-Hoo function.
 #' contourview(branin,dim = 2)
-contourview.function <- function(model, dim = ifelse(is.null(center),2,length(center)),
+contourview.function <- function(model, vectorized=FALSE,
+                                 dim = ifelse(is.null(center),2,length(center)),
                             center = NULL, axis = NULL,
                             npoints = 20,
                             nlevels = 10,
@@ -44,7 +45,10 @@ contourview.function <- function(model, dim = ifelse(is.null(center),2,length(ce
                             title = NULL,
                             add = FALSE,
                             ...) {
-    fun = model
+    if (vectorized)
+        fun = model
+    else
+        fun = Vectorize.function(model,dim)
 
     if (length(col)==1 && isTRUE(filled)) {
         col.fill = col.levels(col,nlevels-1)
@@ -134,13 +138,15 @@ contourview.function <- function(model, dim = ifelse(is.null(center),2,length(ce
 
         ## compute fun.
 
-        for (i1 in 1:npoints[1]) {
-            for (i2 in 1:npoints[2]) {
-                i <- i1 + (i2-1) * npoints[1]
-                yd[i1, i2] <- as.numeric(yscale * fun(x[i,]))
-                y[i] <- yd[i1, i2]
-            }
-        }
+        #for (i1 in 1:npoints[1]) {
+        #    for (i2 in 1:npoints[2]) {
+        #        i <- i1 + (i2-1) * npoints[1]
+        #        yd[i1, i2] <- as.numeric(yscale * fun(x[i,]))
+        #        y[i] <- yd[i1, i2]
+        #    }
+        #}
+        y <- as.numeric(yscale * fun(x))
+        yd <- matrix(y,ncol=npoints[1],nrow=npoints[2])
 
         ## Note that 'ind.nonfix is used here and later
         if (is.null(title)){

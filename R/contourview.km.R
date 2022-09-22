@@ -1,4 +1,4 @@
-#' Plot a contour view of a kriging model, including design points
+#' @title Plot a contour view of a kriging model, including design points
 #' @description Plot a contour view of a kriging model: mean response surface, fitted points and confidence surfaces. Provide a better understanding of the kriging model behaviour.
 #' @param model an object of class \code{"km"}.
 #' @param type the kriging type to use for model prediction.
@@ -23,8 +23,7 @@
 #' @importFrom DiceKriging predict
 #' @importFrom DiceKriging branin
 #' @method contourview km
-#' @docType methods
-#' @rdname km-methods
+#' @aliases contourview,km,km-method
 #' @export
 #' @details Experimental points are plotted with fading colors. Points that fall in the specified section (if any) have the color specified \code{col_points} while points far away from the center have shaded versions of the same color. The amount of fading is determined using the Euclidean distance between the plotted point and \code{center}. The variables chosen with their number are to be found in the \code{X} slot of the model. Thus they are 'spatial dimensions' but not 'trend variables'.
 #' @author Yann Richet, IRSN
@@ -180,16 +179,21 @@ contourview.km <- function(model, type = "UK",
         ## compute predictions for km.
         ## Note that 'sd' is actually a 'se' (standard error)
 
-        for (i1 in 1:npoints[1]) {
-            for (i2 in 1:npoints[2]) {
-                i <- i1 + (i2-1) * npoints[1]
-                y <- predict(model, type = type, newdata = (x[i,]), checkNames=FALSE)
-                y_mean[i] <- yscale * y$mean
-                y_sd[i] <- abs(yscale) * y$sd
-                yd_mean[i1, i2] <- yscale * y$mean
-                yd_sd[i1, i2] <- abs(yscale) * y$sd
-            }
-        }
+        #for (i1 in 1:npoints[1]) {
+        #    for (i2 in 1:npoints[2]) {
+        #        i <- i1 + (i2-1) * npoints[1]
+        #        y <- predict(model, type = type, newdata = (x[i,]), checkNames=FALSE)
+        #        y_mean[i] <- yscale * y$mean
+        #        y_sd[i] <- abs(yscale) * y$sd
+        #        yd_mean[i1, i2] <- yscale * y$mean
+        #        yd_sd[i1, i2] <- abs(yscale) * y$sd
+        #    }
+        #}
+        y <- predict(model, type = type, newdata = x, checkNames=FALSE)
+        y_mean <- as.numeric(yscale * y$mean)
+        y_sd <- as.numeric(abs(yscale) * y$sd)
+        yd_mean <- matrix(y_mean,ncol=npoints[2],nrow=npoints[1])
+        yd_sd <- matrix(y_sd,ncol=npoints[2],nrow=npoints[1])
 
         ## Note that 'ind.nonfix is used here and later
         if (is.null(title)){

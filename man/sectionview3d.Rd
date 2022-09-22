@@ -25,7 +25,8 @@ y <- branin(design.fact)
 ## kriging model 1 : matern5_2 covariance structure, no trend, no nugget effect
 m1 <- km(design = design.fact, response = y)
 
-sectionview3d(m1)
-
-sectionview3d(branin, dim = 2, add=TRUE)
+if (identical(Sys.getenv("NOT_CRAN"), "true")) { # too long for CRAN on Windows
+  sectionview3d(m1)
+  sectionview3d(branin, dim = 2, add=TRUE)
+}
 }

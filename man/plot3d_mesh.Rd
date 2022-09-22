@@ -4,12 +4,12 @@
 \alias{plot3d_mesh}
 \title{Plot a three dimensional mesh}
 \usage{
-plot3d_mesh(mesh, view = "scatterplot3d", color = "black", ...)
+plot3d_mesh(mesh, engine3d = NULL, color = "black", ...)
 }
 \arguments{
 \item{mesh}{3-dimensional mesh to draw}
 
-\item{view}{3d framework to use: 'rgl' or 'scatterplot3d' (default)}
+\item{engine3d}{3d framework to use: 'rgl' if installed or 'scatterplot3d' (default)}
 
 \item{color}{color of the mesh}
 
@@ -19,15 +19,19 @@ plot3d_mesh(mesh, view = "scatterplot3d", color = "black", ...)
 Plot a three dimensional mesh
 }
 \examples{
-plot2d_mesh(mesh_exsets(f = function(x) sin(pi*x[1])*sin(pi*x[2]),
-                        threshold=0,sign=1, mesh="unif",mesh.size=11,
-                        intervals = matrix(c(1/2,5/2,1/2,5/2),nrow=2)))
+if (identical(Sys.getenv("NOT_CRAN"), "true")) { # too long for CRAN on Windows
 
-plot3d_mesh(mesh_exsets(function(x) (0.5+x[1])^2+(-0.5+x[2])^2+(0.+x[3])^2,
-                        threshold = .25,sign=-1, mesh="unif", mesh.sizes = 10,
-                        intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2)))
+  plot3d_mesh(mesh_exsets(function(x) (0.5+x[1])^2+(-0.5+x[2])^2+(0.+x[3])^2,
+                          threshold = .25,sign=-1, mesh="unif",
+                          maxerror_f=1E-2,tol=1E-2, # faster display
+                          intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2)),
+                          engine3d='scatterplot3d')
 
-plot3d_mesh(mesh_exsets(function(x) (0.5+x[1])^2+(-0.5+x[2])^2+(0.+x[3])^2,
-                        threshold = .25,sign=-1, mesh="unif", mesh.sizes = 10,
-                        intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2)),mode='rgl')
+  if (requireNamespace("rgl")) {
+    plot3d_mesh(mesh_exsets(function(x) (0.5+x[1])^2+(-0.5+x[2])^2+(0.+x[3])^2,
+                            threshold = .25,sign=-1, mesh="unif",
+                            maxerror_f=1E-2,tol=1E-2, # faster display
+                            intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2)),engine3d='rgl')
+  }
+}
 }

@@ -1,6 +1,7 @@
-#' Plot section views of a function
+#' @title Plot section views of a function
 #' @description Plot one section view per dimension of a function thus providing a better understanding of the model behaviour.
 #' @param model an object of class \code{"function"}.
+#' @param vectorized is model vectorized? (defaults to FALSE)
 #' @param dim the dimension of fun arguments.
 #' @param center optional coordinates (as a list or data frame) of the center of the section  view if the model's dimension is > 1.
 #' @param axis optional matrix of 1-axis combinations to plot, one by row. The value \code{NULL} leads to all possible combinations i.e. \code{1:D}.
@@ -21,7 +22,6 @@
 #' @importFrom DiceKriging branin
 #' @method sectionview function
 #' @docType methods
-#' @rdname function-methods
 #' @export
 #' @details A multiple rows/columns plot is produced.
 #' @author Yann Richet, IRSN
@@ -29,8 +29,10 @@
 #' @keywords models
 #' @examples
 #' ## A 2D example - Branin-Hoo function.
-#' sectionview(branin,center=c(.5,.5))
-sectionview.function <- function(model, dim = ifelse(is.null(center),1,length(center)),
+#' sectionview(branin,center=c(.5,.5),
+#'   npoints=8) # for faster display
+sectionview.function <- function(model, vectorized=FALSE,
+                                 dim = ifelse(is.null(center),1,length(center)),
                             center = NULL, axis = NULL,
                             npoints = 100,
                             col_surf = "blue",
@@ -41,7 +43,10 @@ sectionview.function <- function(model, dim = ifelse(is.null(center),1,length(ce
                             title = NULL,
                             add = FALSE,
                             ...) {
-    fun = model
+    if (vectorized)
+        fun = model
+    else
+        fun = Vectorize.function(model,dim)
 
     D <- dim
 
@@ -100,9 +105,10 @@ sectionview.function <- function(model, dim = ifelse(is.null(center),1,length(ce
         ## could be simplified in the future
         y <- array(0, npoints)
 
-        for (i in 1:npoints) {
-            y[i] <- as.numeric(yscale * fun(x[i, ]))
-        }
+        #for (i in 1:npoints) { assumed by vectorized
+        #    y[i] <- as.numeric(yscale * fun(x[i, ]))
+        y <- as.numeric(yscale * fun(x))
+        #}
 
         if (is.null(title)){
             if (D>1) {
