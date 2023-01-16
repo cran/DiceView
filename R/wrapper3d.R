@@ -1,3 +1,4 @@
+#' @importFrom utils installed.packages
 load3d = function(package = NULL) {
     if (!is.null(package)) { # prefered package defined
         if (!(package %in% rownames(installed.packages()))) {
@@ -36,7 +37,7 @@ open3d = function(...) {
     } else stop(paste0("Unsupported 3D package: ",package))
 }
 
-#' @test plot3d(runif(10),runif(10),runif(10))
+#' @examples plot3d(runif(10),runif(10),runif(10))
 plot3d = function(x, y=NULL, z=NULL,  col='black', alpha=0.5, add = FALSE, package = load3d(),...) {
     if (is.null(y) & is.null(z)) {y = x[,2]; z = x[,3]; x=x[,1]}
     if (is.null(package)) {
@@ -51,35 +52,36 @@ plot3d = function(x, y=NULL, z=NULL,  col='black', alpha=0.5, add = FALSE, packa
             p3d = get(".p3d",envir = env3d)
             p3d$points3d(x=x, y=y, z=z, color=translude(col,alpha),...)
         }
+        return(p3d)
     } else stop(paste0("Unsupported 3D package: ",package))
 }
 
-#' @test plot3d(runif(10),runif(10),runif(10)); points3d(runif(10),runif(10),runif(10),col='red')
+#' @examples plot3d(runif(10),runif(10),runif(10)); points3d(runif(10),runif(10),runif(10),col='red')
 points3d = function(x, y=NULL, z=NULL,  col='black', alpha=0.5, box=FALSE, package = load3d(), ...) {
     if (is.null(y) & is.null(z)) {y = x[,2]; z = x[,3]; x=x[,1]}
     if (is.null(package)) {
         stop("No 3D package available.")
     } else if (package=="rgl") {
-        rgl::points3d(x, y , z ,  col, alpha,...)
+        rgl::points3d(x, y , z ,  color=col, alpha,...)
     } else if (package=="scatterplot3d") {
         p3d = get(".p3d",envir = env3d)
         p3d$points3d(x=x, y=y, z=z, col=translude(col,alpha),...)
     } else stop(paste0("Unsupported 3D package: ",package))
 }
 
-#' @test plot3d(runif(10),runif(10),runif(10)); lines3d(runif(10),runif(10),runif(10),col='red')
+#' @examples plot3d(runif(10),runif(10),runif(10)); lines3d(runif(10),runif(10),runif(10),col='red')
 lines3d = function(x, y=NULL, z=NULL,  col='black' , alpha=0.5, box=FALSE, package = load3d(),...) {
     if (is.null(package)) {
         stop("No 3D package available.")
     } else if (package=="rgl") {
-        rgl::lines3d(x, y , z ,  col, alpha,...)
+        rgl::lines3d(x, y , z ,  color=col , alpha,...)
     } else if (package=="scatterplot3d") {
         p3d = get(".p3d",envir = env3d)
         p3d$points3d(x=x, y=y, z=z, col=translude(col,alpha),type='l',...)
     } else stop(paste0("Unsupported 3D package: ",package))
 }
 
-#' @test plot3d(runif(10),runif(10),runif(10)); triangles3d(runif(3),runif(3),runif(3),col='red')
+#' @examples plot3d(runif(10),runif(10),runif(10)); triangles3d(runif(3),runif(3),runif(3),col='red')
 triangles3d = function(x, y=NULL, z=NULL, col='black', alpha=0.5, box=FALSE, package = load3d(), ...) {
     if (is.null(y) & is.null(z)) {
         if (is.matrix(x)) {
@@ -91,14 +93,14 @@ triangles3d = function(x, y=NULL, z=NULL, col='black', alpha=0.5, box=FALSE, pac
     if (is.null(package)) {
         stop("No 3D package available.")
     } else if (package=="rgl") {
-        rgl::triangles3d(x ,y , z ,  col , alpha,... )
+        rgl::triangles3d(x ,y , z ,  color=col , alpha,... )
     } else if (package=="scatterplot3d") {
         p3d = get(".p3d",envir = env3d)
         polygon(p3d$xyz.convert(x,y,z),col = translude(col,alpha), border=translude(col,alpha),...)
     } else stop(paste0("Unsupported 3D package: ",package))
 }
 
-#' @test plot3d(runif(10),runif(10),runif(10)); x=runif(4); y=runif(4); z=runif(4); quads3d(x,y,z,col='red'); p=c(4,3,2,1); quads3d(x[p],y[p],z[p],col='red')
+#' @examples plot3d(runif(10),runif(10),runif(10)); x=runif(4); y=runif(4); z=runif(4); quads3d(x,y,z,col='red'); p=c(4,3,2,1); quads3d(x[p],y[p],z[p],col='red')
 quads3d = function(x, y=NULL, z=NULL, col='black', alpha=0.5, box=FALSE, package = load3d(), ...) {
     if (is.null(y) & is.null(z)) {
         if (is.matrix(x)) {
@@ -110,7 +112,7 @@ quads3d = function(x, y=NULL, z=NULL, col='black', alpha=0.5, box=FALSE, package
     if (is.null(package)) {
         stop("No 3D package available.")
     } else if (package=="rgl") {
-        rgl::quads3d(x ,y , z ,  col , alpha,... )
+        rgl::quads3d(x ,y , z ,  color=col , alpha,... )
     } else if (package=="scatterplot3d") {
         p3d = get(".p3d",envir = env3d)
         polygon(p3d$xyz.convert(x,y,z),col = translude(col,alpha), border=translude(col,alpha),...)
@@ -121,7 +123,7 @@ surface3d = function(x, y, z, col='black', alpha = 0.5, box=FALSE, package = loa
     if (is.null(package)) {
         stop("No 3D package available.")
     } else if (package=="rgl") {
-        rgl::surface3d(x ,y , z ,  col , alpha,... )
+        rgl::surface3d(x ,y , z ,  color=col , alpha,... )
     } else if (package=="scatterplot3d") {
         p3d = get(".p3d",envir = env3d)
         # if (nrow(z)!=length(y)) z = t(z)

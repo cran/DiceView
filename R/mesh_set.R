@@ -156,12 +156,13 @@ min_dist <- function (x, X, norm=rep(1,ncol(X))){
 #' @param intervals bounds to inverse in, each column contains min and max of each dimension
 #' @param mesh function or "unif" or "seq" (default) to preform interval partition
 #' @param mesh.sizes number of parts for mesh (duplicate for each dimension if using "seq")
-#' @param f.vectorized is f already vectorized ? (default: no)
+#' @param vectorized is f already vectorized ? (default: no)
 #' @param maxerror_f the maximum error on f evaluation (iterates over uniroot to converge).
 #' @param tol the desired accuracy (convergence tolerance on f arg).
 #' @param ... Other args for f
 #' @import stats
 #' @importFrom DiceDesign lhsDesign
+#' @importFrom parallel mclapply
 #' @export
 #' @return matrix of x, so f(x)=0
 #' @examples
@@ -182,7 +183,7 @@ min_dist <- function (x, X, norm=rep(1,ncol(X))){
 #'
 #' mesh_roots(function(x)exp(x)-1,intervals=c(-1,2))
 #' mesh_roots(function(x)exp(1000*x)-1,intervals=c(-1,2))
-mesh_roots = function(f,f.vectorized=FALSE,intervals, mesh="seq",mesh.sizes=11,maxerror_f=1E-7,tol=.Machine$double.eps^0.25,...) {
+mesh_roots = function(f,vectorized=FALSE,intervals, mesh="seq",mesh.sizes=11,maxerror_f=1E-7,tol=.Machine$double.eps^0.25,...) {
     if (is.matrix(intervals)) {
         lowers = apply(intervals,2,min)
         uppers = apply(intervals,2,max)
@@ -232,30 +233,119 @@ mesh_roots = function(f,f.vectorized=FALSE,intervals, mesh="seq",mesh.sizes=11,m
     simplexes <- geometry::delaunayn(ridge.points,output.options = TRUE)
 
     # Now find ridges where target is bounded, and then root it
-    if (isTRUE(f.vectorized))
+    if (isTRUE(vectorized))
         f_vec=function(x,...) f(x,...)
-    else if (is.function(f.vectorized))
-        f_vec=function(x,...) f.vectorized(x,...)
+    else if (is.function(vectorized))
+        f_vec=function(x,...) vectorized(x,...)
     else
         f_vec=Vectorize.function(f,dim=ncol(ridge.points))
     ridge.y = f_vec(ridge.points,...)
 
-    # Get all ridges where we will do uniroot later
-    # ridges = t(combn(simplexes$tri[1,],2))
-    # for (i in 1:nrow(simplexes$tri)) {
-    #     more_ridges = t(combn(simplexes$tri[i,],2))
-    #     for (j in 1:nrow(more_ridges))
-    #         if (min_dist(more_ridges[j,], ridges)>.Machine$double.eps)
-    #             ridges = rbind(ridges,more_ridges[j,])
+    ############### Benchmark: find ridges that crosses zero ###################
+    # library(microbenchmark)
+    #
+    # f = function(x) exp(-x^2)-0.5
+    # Npoints = 1000
+    # ridge.points = matrix(runif(2*Npoints,-1,1),ncol=2)
+    # simplexes <- geometry::delaunayn(ridge.points,output.options = TRUE)
+    # ridge.y = f(simplexes$p)
+    #
+    # tcombn2 = function(x) (utils::combn(x,2))
+    # tcombn2_arrangements = function(x) t(arrangements::combinations(x,2))
+    # cbind.list = function(l)
+    #     matrix(unlist(l),ncol=length(l),byrow=F) #do.call(cbind,l)
+    # tcombn2_my = function(x){
+    #     l=length(x)
+    #     #C = matrix(NA,nrow=2,factorial(l-1))
+    #     #i = 1
+    #     #for (j in 1:(l-1)) {
+    #     #    for (k in (j+1):l) {
+    #     #        C[,i] = x[c(j,k)]
+    #     #        i = i+1
+    #     #    }
+    #     #}
+    #     #C
+    #     do.call(cbind,lapply(1:(l-1),
+    #                function(j) cbind.list(lapply((j+1):l,
+    #                                       function(k) x[c(j,k)]))))
     # }
-    ridges = Apply.function(X=simplexes$tri,MARGIN=1,FUN=function(tri_i) {
-        more_ridges=NULL
-        all_ridges = t(combn(tri_i,2))
-        for (j in 1:nrow(all_ridges))
-            if (ridge.y[all_ridges[j,1]]*ridge.y[all_ridges[j,2]]<0) # not same sign
-                more_ridges = rbind(more_ridges,all_ridges[j,])
-        return(more_ridges)
-    },.combine=rbind,.lapply=base::lapply)
+    #
+    # microbenchmark({tcombn2(1:5)})
+    # microbenchmark({tcombn2_arrangements(1:5)})
+    # microbenchmark({tcombn2_my(1:5)})
+    #
+    # tcombn2 = function(x) t(arrangements::combinations(x,2)) # faster !
+    #
+    # # for x for (baseline)
+    # microbenchmark({
+    #   ridges = NULL
+    #   for (i in 1:nrow(simplexes$tri)) {
+    #       #if (!all(ridge.y[simplexes$tri[i,]]<0)) {
+    #       more_ridges = tcombn2(simplexes$tri[i,])
+    #       for (j in 1:nrow(more_ridges))
+    #           if (ridge.y[more_ridges[j,1]]*ridge.y[more_ridges[j,2]]<0)
+    #               ridges = rbind(ridges,more_ridges[j,])
+    #      #}
+    #   }
+    # },times=10)
+    #
+    # # lapply x for
+    # microbenchmark({
+    #     ridges = lapply(X=as.list(as.data.frame(t(simplexes$tri))),FUN=function(tri_i) {
+    #         #if (all(ridge.y[tri_i]<0)) return()
+    #         all_ridges = tcombn2(simplexes$tri[i,])
+    #         more_ridges=NULL
+    #         for (j in 1:nrow(all_ridges))
+    #             if (ridge.y[all_ridges[j,1]]*ridge.y[all_ridges[j,2]]<0) # not same sign
+    #                 more_ridges = rbind(more_ridges,all_ridges[j,])
+    #         return(more_ridges)
+    #     })
+    #     ridges = do.call(rbind,ridges)
+    # },times=10)
+    #
+    # # lapply x apply
+    # microbenchmark({
+    #   ridges = lapply(X=as.list(as.data.frame(t(simplexes$tri))),FUN=function(tri_i) {
+    #       #if (all(ridge.y[tri_i]<0)) return()
+    #       all_ridges = tcombn2(simplexes$tri[i,])
+    #       #yprod_all_ridges = apply(all_ridges,1,function(r) ridge.y[r[1]] * ridge.y[r[2]])
+    #       #yprod_all_ridges = apply(all_ridges,1,function(r) prod(ridge.y[r]))
+    #       yprod_all_ridges = all_ridges[
+    #           unlist(lapply(1:nrow(all_ridges),
+    #                  function(i)
+    #                      if (ridge.y[all_ridges[i,1]] * ridge.y[all_ridges[i,2]]<0)
+    #                          return(i)
+    #                         else return(NULL))),]
+    #       return(all_ridges[which(yprod_all_ridges<0),])
+    #   })
+    #   ridges = do.call(rbind,ridges)
+    # },times=10)
+    #
+    ############################################################################
+
+    if (requireNamespace("arrangements"))
+        tcombn2 = function(x) arrangements::combinations(x,2)
+    else
+        tcombn2 = function(x) t(utils::combn(x,2))
+
+    #Get all ridges where we will do uniroot later
+    ridges = NULL
+    for (i in 1:nrow(simplexes$tri)) {
+        #if (!all(ridge.y[simplexes$tri[i,]]<0)) {
+        more_ridges = tcombn2(simplexes$tri[i,])
+        for (j in 1:nrow(more_ridges))
+            if (ridge.y[more_ridges[j,1]]*ridge.y[more_ridges[j,2]]<0)
+                ridges = rbind(ridges,more_ridges[j,])
+       #}
+    }
+
+    if (is.null(ridges)) {
+        r = NA
+        if (!is.null(ridge.points)) {
+            attr(r,"mesh") <- simplexes
+        }
+        return(r)
+    }
 
     ridges = unique(as.matrix(ridges))
 
@@ -328,7 +418,7 @@ mesh_roots = function(f,f.vectorized=FALSE,intervals, mesh="seq",mesh.sizes=11,m
 #' @param maxerror_f maximal tolerance on f precision
 #' @param ex_filter.tri boolean function to validate a geometry::tri as considered in excursion : 'any' or 'all'
 #' @param ... parameters to forward to mesh_roots(...) call
-#' @param f.vectorized is f already vectorized ? (default: no)
+#' @param vectorized is f already vectorized ? (default: no)
 #' @param tol the desired accuracy (convergence tolerance on f arg).
 #' @importFrom geometry delaunayn
 #' @export
@@ -361,10 +451,10 @@ mesh_roots = function(f,f.vectorized=FALSE,intervals, mesh="seq",mesh.sizes=11,m
 #'     apply(e$tri,1,function(tri)rgl::lines3d(e$p[tri,]))
 #'   }
 #' }
-mesh_exsets = function(f, f.vectorized=FALSE, threshold, sign, intervals, mesh="seq", mesh.sizes=11, maxerror_f=1E-9,tol=.Machine$double.eps^0.25,ex_filter.tri=all,...) {
+mesh_exsets = function(f, vectorized=FALSE, threshold, sign, intervals, mesh="seq", mesh.sizes=11, maxerror_f=1E-9,tol=.Machine$double.eps^0.25,ex_filter.tri=all,...) {
     if (sign=="lower" || sign==-1 || sign=="inf" || sign=="<" || isFALSE(sign))
         return(mesh_exsets(f=function(...){-f(...)},
-                           f.vectorized=f.vectorized,
+                           vectorized=vectorized,
                            threshold=-threshold,
                            sign=1,
                            intervals=intervals, mesh=mesh, mesh.sizes=mesh.sizes, maxerror_f=maxerror_f,tol=tol,...))
@@ -373,17 +463,17 @@ mesh_exsets = function(f, f.vectorized=FALSE, threshold, sign, intervals, mesh="
         stop("unknown sign: '",sign,"'")
 
     f_0 <- function(...) return(f(...)-threshold)
-    r <- mesh_roots(f=f_0, f.vectorized=f.vectorized, intervals=intervals,mesh=mesh,mesh.sizes=mesh.sizes,maxerror_f=maxerror_f, tol=tol,...)
+    r <- mesh_roots(f=f_0, vectorized=vectorized, intervals=intervals,mesh=mesh,mesh.sizes=mesh.sizes,maxerror_f=maxerror_f, tol=tol,...)
     if (all(is.na(r)))
         all_points = attr(r,"mesh")$p
     else
         all_points = rbind(attr(r,"mesh")$p,r)
     new_mesh <- geometry::delaunayn(all_points,output.options=TRUE)
 
-    if (isTRUE(f.vectorized))
+    if (isTRUE(vectorized))
         f_vec=function(x,...) f(x,...)
-    else if (is.function(f.vectorized))
-        f_vec=function(x,...) f.vectorized(x,...)
+    else if (is.function(vectorized))
+        f_vec=function(x,...) vectorized(x,...)
     else
         f_vec=Vectorize.function(f,dim=ncol(new_mesh$p))
     new_mesh$y = f_vec(new_mesh$p,...)
@@ -445,8 +535,6 @@ plot2d_mesh = function(mesh,color='black',...){
 #' @param engine3d 3d framework to use: 'rgl' if installed or 'scatterplot3d' (default)
 #' @param color color of the mesh
 #' @param ... optional arguments passed to plot function
-#' @importFrom scatterplot3d scatterplot3d
-# @importFrom rgl plot3d
 #' @export
 #' @examples
 #' if (identical(Sys.getenv("NOT_CRAN"), "true")) { # too long for CRAN on Windows

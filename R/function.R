@@ -20,34 +20,34 @@
 #' X = matrix(runif(10),ncol=2)
 #' f = function(X) X[1]/X[2]
 #' apply(X,1,f) == Apply.function(f,X)
-Apply.function <- function(FUN, X, MARGIN=1, .combine=c, .lapply=parallel::mclapply,...) {
+Apply.function <- function(FUN, X, MARGIN=1, .combine=c, .lapply=parallel::mclapply, ...) {
     if (MARGIN==2) return(FUN, X=t(Apply.function(t(X), MARGIN=1, .combine=.combine, .lapply=.lapply,...)))
     if (MARGIN != 1) stop("Do not (yet) support MARGIN != 1")
 
     X.list = lapply(seq_len(nrow(X)), function(i) X[i,])
     l = .lapply(X.list,FUN,...)
+
     if (is.null(.combine)) return(l)
     do.call(.combine,l)
 }
 
 #' @title Vectorize a multidimensional Function
 #' @description Vectorize a d-dimensional (input) function, in the same way that base::Vectorize for 1-dimensional functions.
-#' @param fund 'dim'-dimensional function to Vectorize
-#' @param dim dimension of input arguments of fund
-#' @param .apply which vectorization to use (default is base::apply)
+#' @param fun 'dim'-dimensional function to Vectorize
+#' @param dim dimension of input arguments of fun
+#' @param ... optional args to pass to 'Apply.function()', including .combine, .lapply, or optional args passed to 'fun'.
 #' @return a vectorized function (to be called on matrix argument, on each row)
 #' @export
 #' @examples
 #' f = function(x)x[1]+1; f(1:10); F = Vectorize.function(f,1);
 #' F(1:10); #F = Vectorize(f); F(1:10);
 #'
-#' f2 = function(x)x[1]+x[2]; f2(1:10); F = Vectorize.function(f2,2);
-#' F(cbind(1:10,11:20)); #F = Vectorize(f); F(1:10);
-Vectorize.function <- function(fund,dim,.apply=base::apply) {
+#' f2 = function(x)x[1]+x[2]; f2(1:10); F2 = Vectorize.function(f2,2);
+#' F2(cbind(1:10,11:20));
+Vectorize.function <- function(fun, dim, ...) {
     function(X,...) {
-        X = unlist(X)
         if (!is.matrix(X)) X = matrix(X,ncol=dim)
-        matrix(.apply(X,1,fund,...),ncol=1)
+        Apply.function(fun,X,...)
     }
 }
 
