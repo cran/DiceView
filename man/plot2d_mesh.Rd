@@ -4,12 +4,22 @@
 \alias{plot2d_mesh}
 \title{Plot a two dimensional mesh}
 \usage{
-plot2d_mesh(mesh, color = "black", ...)
+plot2d_mesh(
+  mesh,
+  color.nodes = "black",
+  color.mesh = "darkgray",
+  alpha = 0.4,
+  ...
+)
 }
 \arguments{
 \item{mesh}{2-dimensional mesh to draw}
 
-\item{color}{color of the mesh}
+\item{color.nodes}{color of the mesh nodes}
+
+\item{color.mesh}{color of the mesh elements}
+
+\item{alpha}{transparency of the mesh elements & nodes}
 
 \item{...}{optional arguments passed to plot function}
 }
@@ -18,6 +28,6 @@ Plot a two dimensional mesh
 }
 \examples{
 plot2d_mesh(mesh_exsets(f = function(x) sin(pi*x[1])*sin(pi*x[2]),
-                        threshold=0,sign=1, mesh="unif",mesh.size=11,
+                        threshold=0,sign=1, mesh.type="unif",mesh.size=11,
                         intervals = matrix(c(1/2,5/2,1/2,5/2),nrow=2)))
 }

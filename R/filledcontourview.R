@@ -2,10 +2,10 @@
 #' @param vectorized is fun vectorized?
 #' @param dim input variables dimension of the model or function.
 #' @param col_fading_interval an optional factor of alpha (color channel) fading used to plot function output intervals (if any).
-#' @template contourview-doc
-#' @rdname contourview
-#' @method contourview function
-#' @aliases contourview,function,function-method
+#' @template filledcontourview-doc
+#' @rdname filledcontourview
+#' @method filledcontourview function
+#' @aliases filledcontourview,function,function-method
 #' @export
 #' @seealso \code{\link{sectionview.function}} for a section plot, and \code{\link{sectionview3d.function}} for a 2D section plot.
 #' @examples
@@ -15,18 +15,18 @@
 #' y <- x1 + x2 + rnorm(15)
 #' model <- lm(y ~ x1 + x2)
 #'
-#' contourview(function(x) sum(x),
+#' filledcontourview(function(x) sum(x),
 #'                      dim=2, Xlim=cbind(range(x1),range(x2)), col='black')
 #' points(x1,x2)
 #'
-#' contourview(function(x) {
+#' filledcontourview(function(x) {
 #'                       x = as.data.frame(x)
 #'                       colnames(x) <- all.vars(model$call)[-1]
 #'                       predict.lm(model, newdata=x, se.fit=FALSE)
 #'                     }, vectorized=TRUE, dim=2,
-#'               Xlim=cbind(range(x1),range(x2)), add=TRUE)
+#'                   Xlim=cbind(range(x1),range(x2)), add=TRUE)
 #'
-contourview.function <- function(fun, vectorized=FALSE,
+filledcontourview.function <- function(fun, vectorized=FALSE,
                                 dim = NULL,
                              center = NULL,
                              lty_center = 2,
@@ -34,7 +34,7 @@ contourview.function <- function(fun, vectorized=FALSE,
                              axis = NULL,
                              npoints = 21,
                              levels = 10,
-                             lty_levels = 3,
+                             lty_levels = 1,
                              col_levels = if (!is.null(col) & length(col)==1) col.levels(col,levels-1) else col.levels("blue",levels-1),
                              col = NULL,
                              col_fading_interval = 0.5,
@@ -76,10 +76,19 @@ contourview.function <- function(fun, vectorized=FALSE,
         mfrow <- c(nc, nl)
     }
 
+    if (length(col_levels) == length(levels)-1)
+        col_fills = col_levels
+    else if (length(col_levels) == 1)
+        col_fills = colorRampPalette(c(rgb(1,1,1,0),col_levels), alpha=TRUE)(levels) # from white transparent to col_level
+    else if (length(col_levels) == 2)
+        col_fills =  colorRampPalette(col_levels)(levels)
+    else
+        stop("col_levels must be a vector of length 1, 2 or levels.")
+
     if (!isTRUE(add)) {
         if (D>2) {
             close.screen( all.screens = TRUE )
-            split.screen(figs = mfrow, erase=TRUE)
+            split.screen(figs = mfrow)
         }
         assign(".split.screen.lim",matrix(NaN,ncol=6,nrow=D),envir=DiceView.env) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
     }
@@ -99,7 +108,7 @@ contourview.function <- function(fun, vectorized=FALSE,
                 rx[1,i] <- min(rx[1,i],center[i])
                 rx[2,i] <- max(rx[2,i],center[i])
             }
-    }
+        }
     rownames(rx) <- c("min", "max")
     drx <- unlist(rx["max", ]) - unlist(rx["min", ])
 
@@ -152,6 +161,9 @@ contourview.function <- function(fun, vectorized=FALSE,
         F_x$yd <- matrix(F_x$y,ncol=npoints[2],nrow=npoints[1])
         F_x$yd_low <- matrix(F_x$y_low,ncol=npoints[2],nrow=npoints[1])
         F_x$yd_up <- matrix(F_x$y_up,ncol=npoints[2],nrow=npoints[1])
+        F_x$yd_err <- F_x$yd_up - F_x$yd_low
+
+        if (is.null(levels)) levels = pretty(F_x$y,length(levels))
 
         if (is.null(title)){
             title_d <- paste(collapse = "~",sep = "~", ylab, paste(collapse = ",", sep = ",", Xlab[d[1]], Xlab[d[2]]))
@@ -169,9 +181,13 @@ contourview.function <- function(fun, vectorized=FALSE,
             xlim <- c(.split.screen.lim[d,1],.split.screen.lim[d,2])
             ylim <- c(.split.screen.lim[d,3],.split.screen.lim[d,4])
             zlim <- c(.split.screen.lim[d,5],.split.screen.lim[d,6])
-            contour(x = xd1,y = xd2, z = if (!all(is.na(F_x$yd))) F_x$yd else F_x$yd_low,
+            .filled.contour(x = xd1,y = xd2, z = if (!all(is.na(F_x$yd))) F_x$yd else F_x$yd_low,
+                            col = col_fills,
+                            levels = levels)
+            if (lty_levels>0)
+                contour(x = xd1,y = xd2, z = if (!all(is.na(F_x$yd))) F_x$yd else F_x$yd_low,
                     xlim = xlim, ylim = ylim, zlim = zlim,
-                    col = col_levels,  lty = if (!all(is.na(F_x$yd))) lty_levels else 0,
+                    col = col_fills,  lty = lty_levels,
                     levels = levels,
                     add=TRUE,
                     ...)
@@ -183,253 +199,26 @@ contourview.function <- function(fun, vectorized=FALSE,
                     xlab = Xlab[d[1]], ylab = Xlab[d[2]],
                     xlim = xlim, ylim = ylim,
                     main = title_d,
-                    col = col_levels,  lty = if (!all(is.na(F_x$yd))) lty_levels else 0,
+                    col = col_fills,  lty = lty_levels,
                     levels = levels,
                     add=FALSE,
                     ...)
+            .filled.contour(x = xd1, y = xd2, z = if (!all(is.na(F_x$yd))) F_x$yd else F_x$yd_low,
+                    col = col_fills,
+                    levels = levels)
             if(D>2) {
                 abline(v=center[d[1]],col=col_center,lty=lty_center)
                 abline(h=center[d[2]],col=col_center,lty=lty_center)
             }
         }
 
-	    if (!all(is.na(F_x$yd_low)) && !all(is.na(F_x$yd_up))) {
-                for (i in 1:length(levels)) {
-                    .filled.contour(x = xd1, y = xd2, z = abs((F_x$yd_low+F_x$yd_up)/2 - levels[i])-(F_x$yd_up-F_x$yd_low)/2,
-                                    #xlim = xlim, ylim = ylim, zlim = zlim,
-                                    col = fade(col_levels[i],alpha = 1-col_fading_interval),
-                                    levels = c(-max(F_x$yd_up-F_x$yd_low),0))
-                    #.filled.contour(x = xd1, y = xd2, z = abs(yd_mean - levels[i])-0.25*yd_sd,
-                    #                #xlim = xlim, ylim = ylim, zlim = zlim,
-                    #                col = fade(col_levels,alpha = (1-0.25)*col_fading_interval),
-                    #                levels = c(-max(y_sd),0))
-
-            }
+	    if (!all(is.na(F_x$yd_err))) {
+                col_fills_rgba = col2rgb("white")
+                col_err = rgb(col_fills_rgba[1]/255,col_fills_rgba[2]/255,col_fills_rgba[3]/255,seq(from=0,to=1,length=length(levels)))
+                image(x = xd1,y = xd2, z = F_x$yd_err,
+                      col = col_err, breaks=seq(from=min(F_x$yd_err),to=max(F_x$yd_err),length=length(col_err)+1),
+                      add=TRUE)
 	    }
-    }
-}
-
-
-#' @param X the matrix of input design.
-#' @param y the array of output values (two columns means an interval).
-#' @param col_points color of points.
-#' @param bg_fading  an optional factor of alpha (color channel) fading used to plot design points outside from this section.
-#' @template contourview-doc
-#' @rdname contourview
-#' @method contourview matrix
-#' @aliases contourview,matrix,matrix-method
-#' @export
-#' @seealso \code{\link{sectionview.matrix}} for a section plot, and \code{\link{sectionview3d.matrix}} for a 2D section plot.
-#' @examples
-#' X = matrix(runif(15*2),ncol=2)
-#' y = apply(X,1,branin)
-#'
-#' contourview(X, y)
-#'
-contourview.matrix <- function(X, y,
-                           center = NULL,
-                           lty_center = 2,
-                           col_center = "black",
-                           axis = NULL,
-                           col_points = if (!is.null(col)) col else "red",
-                           col = NULL,
-                           bg_fading = 1,
-                           mfrow = NULL,
-                           Xlab = NULL, ylab = NULL,
-                           Xlim = NULL,
-                           title = NULL,
-                           add = FALSE,
-                           ...) {
-    D <- ncol(X)
-    n <- nrow(X)
-
-    if (is.matrix(y) && ncol(y) == 2) {
-        y_low <- y[ , 1]
-        y_up <- y[ , 2]
-        y <- NA
-    } else {
-        y_low <- NA
-        y_up <- NA
-    }
-
-    ## find limits: rx is matrix with min in row 1 and max in row 2
-    rx <- apply(X, 2, range)
-    if(!is.null(Xlim)) rx <- matrix(Xlim,nrow=2,ncol=D)
-    rownames(rx) <- c("min", "max")
-    drx <- unlist(rx["max", ]) - unlist(rx["min", ])
-
-    zlim <- c(NA, NA) #Not used for this kind of plot
-
-    ## define X & y labels
-    if (is.null(ylab) && !is.null(names(y))) ylab <- names(y)[1]
-    if (is.null(Xlab)) Xlab <- names(X)
-
-    if (is.null(axis)) {
-        axis <- t(utils::combn(D, 2))
-    } else {
-        axis <- matrix(axis, ncol = 2)
-    }
-
-    if (is.null(mfrow)) {
-        nc <- round(sqrt(nrow(axis)))
-        nl <- ceiling(nrow(axis)/nc)
-        mfrow <- c(nc, nl)
-    }
-
-    if (!isTRUE(add)) {
-        if (D>2) {
-            close.screen( all.screens = TRUE )
-            split.screen(figs = mfrow, erase=TRUE)
-        }
-        assign(".split.screen.lim",matrix(NaN,ncol=6,nrow=D),envir=DiceView.env) # xmin,xmax,ymin,ymax matrix of limits, each row for one dim combination
-    }
-
-    if (!exists(".split.screen.lim",envir=DiceView.env))
-        assign(".split.screen.lim",matrix(NaN,ncol=6,nrow=D),envir=DiceView.env)
-
-    ## define X & y labels
-    if (is.null(ylab)) ylab <- "y"
-    if (is.null(Xlab)) Xlab <- paste(sep = "", "X", 1:D)
-
-    fcenter <- tryFormat(x = center, drx = drx)
-
-    ## Each 'id' will produce a plot
-    for (id in 1:dim(axis)[1]) {
-        if (D>2) screen(id, new=!add)
-
-        d <- axis[id,]
-
-        ## ind.nonfix flags the non fixed dims
-        ind.nonfix <- (1:D) %in% c(d[1], d[2])
-        ind.nonfix <- !ind.nonfix
-
-        xlim <- unlist(rx[ , d[1]])
-        ylim <- unlist(rx[ , d[2]])
-
-        if (is.null(title)){
-            title_d <- paste(collapse = "~",sep = "~", ylab, Xlab[d])
-            if (D>1) {
-                title_d <-  paste(collapse = " | ", sep = " | ", title_d, paste(Xlab[-d], '=', fcenter[-d]))
-            }
-        } else {
-            title_d <- title
-        }
-
-        ## fading colors for points
-        if (D>2) {
-            xrel <- scale(x = as.matrix(X),
-                          center = center,
-                          scale = drx)
-
-            ## ind.nonfix flags the non fixed dims
-            ind.nonfix <- (1:D) %in% c(d[1], d[2])
-            ind.nonfix <- !ind.nonfix
-
-            alpha <- pmax(0,apply(X = xrel[ , ind.nonfix, drop = FALSE],
-                           MARGIN = 1,
-                           FUN = function(x) (1 - sqrt(sum(x^2)/D))^bg_fading))
-        } else {
-            alpha <- rep(1, n)
-        }
-
-        if (isTRUE(add)) {
-            # re-use global settings for limits of this screen
-            .split.screen.lim = get(x=".split.screen.lim",envir=DiceView.env)
-            xlim <- c(.split.screen.lim[1,1],.split.screen.lim[1,2])
-            ylim <- c(.split.screen.lim[1,3],.split.screen.lim[1,4])
-            zlim <- c(.split.screen.lim[1,5],.split.screen.lim[1,6])
-            if (D>2)
-                plot(x=X[,d],  # Cannot use 'points' so use 'plot' with these neutral args
-                     col = fade(color = col_points, alpha = alpha),
-                     pch = 20,type='p',
-                     xlab="",ylab="", main="", xlim=xlim, ylim=ylim,
-                     bty='n', xaxt='n', yaxt='n', ann=FALSE, # remove all text, that should be already     displayed
-                     )
-            else
-                points(X[,d],
-                       col = fade(color = col_points, alpha = alpha),
-                       xlim=xlim,ylim=ylim,
-                       pch = 20)
-        } else {
-            eval(parse(text=paste(".split.screen.lim[",d,",] = matrix(c(",xlim[1],",",xlim[2],",",ylim[1],",",ylim[2],",",zlim[1],",",zlim[2],"),nrow=1)")),envir=DiceView.env)
-            plot(X[,d],
-                 xlab=Xlab[d[1]], ylab=Xlab[d[1]], xlim=xlim, ylim=ylim,
-                 main=title_d,
-                 pch = 20, type = "p",
-                 col = fade(color = col_points, alpha = alpha),
-                 ...)
-            if(D>2) {
-                abline(v=center[d[1]],col=col_center,lty=lty_center)
-                abline(h=center[d[2]],col=col_center,lty=lty_center)
-            }
-        }
-    }
-}
-
-#' @param eval_str the expression to evaluate in each subplot.
-#' @param axis optional matrix of 2-axis combinations to plot, one by row. The value \code{NULL} leads to all possible combinations i.e. \code{choose(D, 2)}.
-#' @param mfrow  an optional list to force \code{par(mfrow = ...)} call. The default value  \code{NULL} is automatically set for compact view.
-#' @rdname contourview
-#' @method contourview character
-#' @aliases contourview,character,character-method
-#' @export
-#' @seealso \code{\link{contourview.matrix}} for a section plot.
-#' @examples
-#' x1 <- rnorm(15)
-#' x2 <- rnorm(15)
-#'
-#' y <- x1 + x2^2 + rnorm(15)
-#' model <- glm(y ~ x1 + I(x2^2))
-#'
-#' contourview(model)
-#'
-#' contourview("abline(h=0.25,col='red')")
-contourview.character <- function(eval_str,
-                                 axis = NULL,
-                                 mfrow = NULL,
-                                 ...) {
-
-    if (!exists(".split.screen.lim",envir=DiceView.env))
-        stop(paste0("Cannot eval '",eval_str,"' when no previous sectionview() was called."))
-    else
-        .split.screen.lim = get(x=".split.screen.lim",envir=DiceView.env)
-
-    D <- nrow(.split.screen.lim)
-
-    if (is.null(axis)) {
-        axis <- matrix(1:D, ncol = 1)
-    } else {
-        ## added by YD for the vector case
-        axis <- matrix(axis, ncol = 1)
-    }
-
-    if (is.null(mfrow) && (D>1)) {
-        nc <- round(sqrt(D))
-        nl <- ceiling(D/nc)
-        mfrow <- c(nc, nl)
-    }
-
-    ## Each 'id' will produce a plot
-    for (id in 1:dim(axis)[1]) {
-
-        d <- axis[id,]
-
-        e = parent.frame()
-        assign("d",d,envir=e)
-        assign("xlim",c(.split.screen.lim[d,1],.split.screen.lim[d,2]),envir=e)
-        assign("ylim",c(.split.screen.lim[d,3],.split.screen.lim[d,4]),envir=e)
-        assign("zlim",c(.split.screen.lim[d,5],.split.screen.lim[d,6]),envir=e)
-
-        if (D>2) {
-            screen(id, new=FALSE)
-            plot(x=c(.split.screen.lim[d,1],.split.screen.lim[d,2]), y=c(.split.screen.lim[d,3],.split.screen.lim[d,4]),
-                 type='n',
-                 xlab="",ylab="", main="",
-                 bty='n', xaxt='n', yaxt='n', ann=FALSE, # remove all text, that should be already displayed
-                 ...)
-        }
-
-        eval(parse(text = eval_str), envir = e)
     }
 }
 
@@ -439,10 +228,10 @@ contourview.character <- function(eval_str,
 #' @param conf_level confidence hulls to display.
 #' @param conf_fading an optional factor of alpha (color channel) fading used to plot confidence intervals.
 #' @param bg_fading  an optional factor of alpha (color channel) fading used to plot design points outside from this section.
-#' @template contourview-doc
-#' @rdname contourview
-#' @method contourview km
-#' @aliases contourview,km,km-method
+#' @template filledcontourview-doc
+#' @rdname filledcontourview
+#' @method filledcontourview km
+#' @aliases filledcontourview,km,km-method
 #' @export
 #' @seealso \code{\link{sectionview.km}} for a section plot, and \code{\link{sectionview3d.km}} for a 2D section plot.
 #' @examples
@@ -453,11 +242,11 @@ contourview.character <- function(eval_str,
 #'
 #' model <- km(design = X, response = y, covtype="matern3_2")
 #'
-#' contourview(model)
+#' filledcontourview(model)
 #'
 #' }
 #'
-contourview.km <- function(km_model, type = "UK",
+filledcontourview.km <- function(km_model, type = "UK",
                            center = NULL,
                            axis = NULL,
                            npoints = 21,
@@ -515,16 +304,16 @@ contourview.km <- function(km_model, type = "UK",
         conf_fading <- rep(0.5/length(conf_level), length(conf_level))
 
     # plot mean
-    contourview.function(fun = function(x) {
+    filledcontourview.function(
+        fun = function(x) {
             DiceKriging::predict.km(km_model,type=type,newdata=x,checkNames=FALSE)$mean
         }, vectorized=TRUE,
-        dim = D, center = center,axis = axis,npoints = npoints,
-        levels = levels, col_levels = col_levels,
-        mfrow = mfrow, Xlab = Xlab, ylab = ylab,
-        Xlim = rx, title = title, add = add, ...)
+    dim = D, center = center,axis = axis,npoints = npoints,
+    levels = levels, col_levels = col_levels,
+    mfrow = mfrow, Xlab = Xlab, ylab = ylab,
+    Xlim = rx, title = title, add = add, ...)
 
-    # plot design points
-    contourview.matrix(X = X_doe, y = y_doe,
+    contourview.matrix(X = X_doe, y = cbind(y_doe, sdy_doe),
                        dim = D, center = center, axis = axis,
                        col_points = col_points,
                        bg_fading = bg_fading,
@@ -532,7 +321,7 @@ contourview.km <- function(km_model, type = "UK",
 
     # plot confidence bands
     for (l in conf_level) {
-        contourview.function(fun = function(x) {
+        filledcontourview.function(fun = function(x) {
                 p = DiceKriging::predict.km(km_model,type=type,newdata=x,checkNames=FALSE)
                 cbind(p$mean-qnorm(1-(1-l)/2) * p$sd, p$mean+qnorm(1-(1-l)/2) * p$sd)
             }, vectorized=TRUE,
@@ -548,7 +337,7 @@ contourview.km <- function(km_model, type = "UK",
 #' @param conf_level confidence level hull to display.
 #' @param col_fading_interval an optional factor of alpha (color channel) fading used to plot confidence hull.
 #' @param bg_fading  an optional factor of alpha (color channel) fading used to plot design points outside from this section.
-contourview_libKriging <- function(libKriging_model,
+filledcontourview_libKriging <- function(libKriging_model,
                            center = NULL,
                            axis = NULL,
                            npoints = 21,
@@ -608,8 +397,7 @@ contourview_libKriging <- function(libKriging_model,
         length(conf_fading) != length(conf_level))
         conf_fading <- rep(0.5/length(conf_level), length(conf_level))
 
-    # plot mean
-    contourview.function(fun = function(x) {
+    filledcontourview.function(fun = function(x) {
             rlibkriging::predict(libKriging_model,x,return_stdev=FALSE)$mean
         }, vectorized=TRUE,
         dim = D, center = center,axis = axis,npoints = npoints,
@@ -626,7 +414,7 @@ contourview_libKriging <- function(libKriging_model,
 
     # plot confidence bands
     for (l in conf_level) {
-        contourview.function(fun = function(x) {
+        filledcontourview.function(fun = function(x) {
                 p = rlibkriging::predict(libKriging_model,x,return_stdev=TRUE)
                 cbind(p$mean-qnorm(1-(1-l)/2) * p$stdev, p$mean+qnorm(1-(1-l)/2) * p$stdev)
             }, vectorized=TRUE,
@@ -642,10 +430,10 @@ contourview_libKriging <- function(libKriging_model,
 #' @param conf_level confidence hulls to display.
 #' @param conf_fading an optional factor of alpha (color channel) fading used to plot confidence intervals.
 #' @param bg_fading  an optional factor of alpha (color channel) fading used to plot design points outside from this section.
-#' @template contourview-doc
-#' @rdname contourview
-#' @method contourview Kriging
-#' @aliases contourview,Kriging,Kriging-method
+#' @template filledcontourview-doc
+#' @rdname filledcontourview
+#' @method filledcontourview Kriging
+#' @aliases filledcontourview,Kriging,Kriging-method
 #' @export
 #' @seealso \code{\link{sectionview.Kriging}} for a section plot, and \code{\link{sectionview3d.Kriging}} for a 2D section plot.
 #' @examples
@@ -656,11 +444,11 @@ contourview_libKriging <- function(libKriging_model,
 #'
 #' model <- Kriging(X = X, y = y, kernel="matern3_2")
 #'
-#' contourview(model)
+#' filledcontourview(model)
 #'
 #' }
 #'
-contourview.Kriging <- function(Kriging_model,
+filledcontourview.Kriging <- function(Kriging_model,
                                    center = NULL,
                                    axis = NULL,
                                    npoints = 21,
@@ -677,7 +465,7 @@ contourview.Kriging <- function(Kriging_model,
                                    title = NULL,
                                    add = FALSE,
                                    ...) {
-    contourview_libKriging(libKriging_model = Kriging_model,
+    filledcontourview_libKriging(libKriging_model = Kriging_model,
                            center = center,
                            axis = axis,
                            npoints = npoints,
@@ -701,10 +489,10 @@ contourview.Kriging <- function(Kriging_model,
 #' @param conf_level an optional list of confidence hulls to display.
 #' @param conf_fading an optional factor of alpha (color channel) fading used to plot confidence intervals.
 #' @param bg_fading  an optional factor of alpha (color channel) fading used to plot design points outside from this section.
-#' @template contourview-doc
-#' @rdname contourview
-#' @method contourview NuggetKriging
-#' @aliases contourview,NuggetKriging,NuggetKriging-method
+#' @template filledcontourview-doc
+#' @rdname filledcontourview
+#' @method filledcontourview NuggetKriging
+#' @aliases filledcontourview,NuggetKriging,NuggetKriging-method
 #' @export
 #' @seealso \code{\link{sectionview.NuggetKriging}} for a section plot, and \code{\link{sectionview3d.NuggetKriging}} for a 2D section plot.
 #' @examples
@@ -715,11 +503,11 @@ contourview.Kriging <- function(Kriging_model,
 #'
 #' model <- NuggetKriging(X = X, y = y, kernel="matern3_2")
 #'
-#' contourview(model)
+#' filledcontourview(model)
 #'
 #' }
 #'
-contourview.NuggetKriging <- function(NuggetKriging_model,
+filledcontourview.NuggetKriging <- function(NuggetKriging_model,
                                 center = NULL,
                                 axis = NULL,
                                 npoints = 21,
@@ -736,7 +524,7 @@ contourview.NuggetKriging <- function(NuggetKriging_model,
                                 title = NULL,
                                 add = FALSE,
                                 ...) {
-    contourview_libKriging(libKriging_model = NuggetKriging_model,
+    filledcontourview_libKriging(libKriging_model = NuggetKriging_model,
                            center = center,
                            axis = axis,
                            npoints = npoints,
@@ -760,10 +548,10 @@ contourview.NuggetKriging <- function(NuggetKriging_model,
 #' @param conf_level an optional list of confidence hulls to display.
 #' @param conf_fading an optional factor of alpha (color channel) fading used to plot confidence intervals.
 #' @param bg_fading  an optional factor of alpha (color channel) fading used to plot design points outside from this section.
-#' @template contourview-doc
-#' @rdname contourview
-#' @method contourview NoiseKriging
-#' @aliases contourview,NoiseKriging,NoiseKriging-method
+#' @template filledcontourview-doc
+#' @rdname filledcontourview
+#' @method filledcontourview NoiseKriging
+#' @aliases filledcontourview,NoiseKriging,NoiseKriging-method
 #' @export
 #' @seealso \code{\link{sectionview.NoiseKriging}} for a section plot, and \code{\link{sectionview3d.NoiseKriging}} for a 2D section plot.
 #' @examples
@@ -774,11 +562,11 @@ contourview.NuggetKriging <- function(NuggetKriging_model,
 #'
 #' model <- NoiseKriging(X = X, y = y, kernel="matern3_2", noise=rep(5^2,15))
 #'
-#' contourview(model)
+#' filledcontourview(model)
 #'
 #' }
 #'
-contourview.NoiseKriging <- function(NoiseKriging_model,
+filledcontourview.NoiseKriging <- function(NoiseKriging_model,
                                       center = NULL,
                                       axis = NULL,
                                       npoints = 21,
@@ -795,7 +583,7 @@ contourview.NoiseKriging <- function(NoiseKriging_model,
                                       title = NULL,
                                       add = FALSE,
                                       ...) {
-    contourview_libKriging(libKriging_model = NoiseKriging_model,
+    filledcontourview_libKriging(libKriging_model = NoiseKriging_model,
                            center = center,
                            axis = axis,
                            npoints = npoints,
@@ -819,10 +607,10 @@ contourview.NoiseKriging <- function(NoiseKriging_model,
 #' @param conf_level confidence hulls to display.
 #' @param conf_fading an optional factor of alpha (color channel) fading used to plot confidence hull.
 #' @param bg_fading  an optional factor of alpha (color channel) fading used to plot design points outside from this section.
-#' @template contourview-doc
-#' @rdname contourview
-#' @method contourview glm
-#' @aliases contourview,glm,glm-method
+#' @template filledcontourview-doc
+#' @rdname filledcontourview
+#' @method filledcontourview glm
+#' @aliases filledcontourview,glm,glm-method
 #' @export
 #' @seealso \code{\link{sectionview.glm}} for a section plot, and \code{\link{sectionview3d.glm}} for a 2D section plot.
 #' @examples
@@ -832,9 +620,9 @@ contourview.NoiseKriging <- function(NoiseKriging_model,
 #' y <- x1 + x2^2 + rnorm(15)
 #' model <- glm(y ~ x1 + I(x2^2))
 #'
-#' contourview(model)
+#' filledcontourview(model)
 #'
-contourview.glm <- function(glm_model,
+filledcontourview.glm <- function(glm_model,
                            center = NULL,
                            axis = NULL,
                            npoints = 21,
@@ -892,7 +680,7 @@ contourview.glm <- function(glm_model,
         conf_fading <- rep(0.5/length(conf_level), length(conf_level))
 
     # plot mean
-    contourview.function(
+    filledcontourview.function(
         fun = function(x) {
             x = as.data.frame(x)
             colnames(x) <- Xlab
@@ -911,10 +699,9 @@ contourview.glm <- function(glm_model,
                        mfrow = mfrow,
                        Xlim = rx,
                        add=TRUE)
-
                            # plot confidence bands
     for (l in conf_level) {
-        contourview.function(fun = function(x) {
+        filledcontourview.function(fun = function(x) {
                 x = as.data.frame(x)
                 colnames(x) <- Xlab
                 p = predict.glm(glm_model, newdata=x, se.fit=TRUE)
@@ -931,10 +718,10 @@ contourview.glm <- function(glm_model,
 #' @param modelFit_model an object returned by DiceEval::modelFit.
 #' @param col_points color of points.
 #' @param bg_fading  an optional factor of alpha (color channel) fading used to plot design points outside from this section.
-#' @template contourview-doc
-#' @rdname contourview
-#' @method contourview list
-#' @aliases contourview,list,list-method
+#' @template filledcontourview-doc
+#' @rdname filledcontourview
+#' @method filledcontourview list
+#' @aliases filledcontourview,list,list-method
 #' @export
 #' @seealso \code{\link{sectionview.glm}} for a section plot, and \code{\link{sectionview3d.glm}} for a 2D section plot.
 #' @examples
@@ -945,11 +732,11 @@ contourview.glm <- function(glm_model,
 #'
 #' model <- modelFit(X, y, type = "StepLinear")
 #'
-#' contourview(model)
+#' filledcontourview(model)
 #'
 #' }
 #'
-contourview.list <- function(modelFit_model,
+filledcontourview.list <- function(modelFit_model,
                             center = NULL,
                             axis = NULL,
                             npoints = 21,
@@ -994,8 +781,7 @@ contourview.list <- function(modelFit_model,
         axis <- matrix(axis, ncol = 2)
     }
 
-    # plot mean
-    contourview.function(
+    filledcontourview.function(
         fun = function(x) {
             x = as.data.frame(x)
             colnames(x) <- Xlab
@@ -1016,22 +802,24 @@ contourview.list <- function(modelFit_model,
 
 
 
-#### Wrapper for contourview ####
+
+
+#### Wrapper for filledcontourview ####
 
 #' @import methods
-if(!isGeneric("contourview")) {
-    setGeneric(name = "contourview",
-               def = function(...) standardGeneric("contourview")
+if(!isGeneric("filledcontourview")) {
+    setGeneric(name = "filledcontourview",
+               def = function(...) standardGeneric("filledcontourview")
     )
 }
 
 #' @title Plot a contour view of a prediction model or function, including design points if available.
 #' @details If available, experimental points are plotted with fading colors. Points that fall in the specified section (if any) have the color specified \code{col_points} while points far away from the center have shaded versions of the same color. The amount of fading is determined using the Euclidean distance between the plotted point and \code{center}.
-#' @param ... arguments of the \code{contourview.km}, \code{contourview.glm}, \code{contourview.Kriging} or \code{contourview.function} function
+#' @param ... arguments of the \code{filledcontourview.km}, \code{filledcontourview.glm}, \code{filledcontourview.Kriging} or \code{filledcontourview.function} function
 #' @export
 #' @examples
 #' ## A 2D example - Branin-Hoo function
-#' contourview(branin, dim=2, levels=30, col='black')
+#' filledcontourview(branin, dim=2, levels=30, col='black')
 #'
 #' \dontrun{
 #' ## a 16-points factorial design, and the corresponding response
@@ -1043,30 +831,30 @@ if(!isGeneric("contourview")) {
 #' if (requireNamespace("DiceKriging")) { library(DiceKriging)
 #' ## model: km
 #' model <- DiceKriging::km(design = design.fact, response = y)
-#' contourview(model, levels=30)
-#' contourview(branin, dim=2, levels=30, col='red', add=TRUE)
+#' filledcontourview(model, levels=30)
+#' filledcontourview(branin, dim=2, levels=30, col='red', add=TRUE)
 #' }
 #'
 #' if (requireNamespace("rlibkriging")) { library(rlibkriging)
 #' ## model: Kriging
 #' model <- Kriging(X = as.matrix(design.fact), y = as.matrix(y), kernel="matern3_2")
-#' contourview(model, levels=30)
-#' contourview(branin, dim=2, levels=30, col='red', add=TRUE)
+#' filledcontourview(model, levels=30)
+#' filledcontourview(branin, dim=2, levels=30, col='red', add=TRUE)
 #' }
 #'
 #' ## model: glm
 #' model <- glm(y ~ 1+ x1 + x2 + I(x1^2) + I(x2^2) + x1*x2, data=cbind(y,design.fact))
-#' contourview(model, levels=30)
-#' contourview(branin, dim=2, levels=30, col='red', add=TRUE)
+#' filledcontourview(model, levels=30)
+#' filledcontourview(branin, dim=2, levels=30, col='red', add=TRUE)
 #'
 #' if (requireNamespace("DiceEval")) { library(DiceEval)
 #' ## model: StepLinear
 #' model <- modelFit(design.fact, y, type = "StepLinear")
-#' contourview(model, levels=30)
-#' contourview(branin, dim=2, levels=30, col='red', add=TRUE)
+#' filledcontourview(model, levels=30)
+#' filledcontourview(branin, dim=2, levels=30, col='red', add=TRUE)
 #' }
 #' }
 #'
-contourview <- function(...){
-    UseMethod("contourview")
+filledcontourview <- function(...){
+    UseMethod("filledcontourview")
 }

@@ -29,10 +29,29 @@ translude <- function(col, alpha = 0.6) {
 
 #' @import grDevices
 col.levels <- function(color,nlevels){
-        col.rgb=col2rgb(color)
-        col.hsv=rgb2hsv(r=col.rgb[1],g=col.rgb[2],b=col.rgb[3])
-        col = hsv(h=col.hsv[1],s=seq(f=0,t=col.hsv[2],l=nlevels),v=col.hsv[3])
-        return(col)
+    if (length(nlevels)!=1) # if nlevels is in fact levels
+        nlevels <- length(nlevels)-1
+    col.rgb=col2rgb(color)
+    col.hsv=rgb2hsv(r=col.rgb[1],g=col.rgb[2],b=col.rgb[3])
+    col = hsv(h=col.hsv[1],s=seq(f=0,t=col.hsv[2],l=nlevels),v=col.hsv[3])
+    return(col)
+}
+
+##========================================================
+## level colors: two base colors incermented in hsv to provide a palette
+##
+##========================================================
+
+#' @import grDevices
+cols.levels <- function(color1,color2,nlevels) {
+    col1.rgb=col2rgb(color1)
+    col2.rgb=col2rgb(color2)
+    col1.hsv=rgb2hsv(r=col1.rgb[1],g=col1.rgb[2],b=col1.rgb[3])
+    col2.hsv=rgb2hsv(r=col2.rgb[1],g=col2.rgb[2],b=col2.rgb[3])
+    col = hsv(h=seq(f=col1.hsv[1],t=col2.hsv[1],l=nlevels),
+              s=seq(f=col1.hsv[2],t=col2.hsv[2],l=nlevels),
+              v=seq(f=col1.hsv[3],t=col2.hsv[3],l=nlevels))
+    return(col)
 }
 
 ##========================================================
@@ -105,8 +124,9 @@ tryFormat <- function(x, drx) {
     ff <- ff + fd +1
 
     formats <- paste("%", ff, ".", fd, "f", sep = "")
-    fx <- sprintf(formats, x)
-
+    fx = format(x)
+    try(fx <- sprintf(formats, x))
+    fx
 }
 
 #' This is a simple copy of the Branin-Hoo 2-dimensional test function, as provided in DiceKriging package.

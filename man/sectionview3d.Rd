@@ -5,6 +5,8 @@
 \alias{sectionview3d,function,function-method}
 \alias{sectionview3d.matrix}
 \alias{sectionview3d,matrix,matrix-method}
+\alias{sectionview3d.character}
+\alias{sectionview3d,character,character-method}
 \alias{sectionview3d.km}
 \alias{sectionview3d,km,km-method}
 \alias{sectionview3d.Kriging}
@@ -26,10 +28,10 @@
   dim = NULL,
   center = NULL,
   axis = NULL,
-  npoints = 20,
-  col_surf = "blue",
-  conf_lev = c(0.95),
-  conf_blend = NULL,
+  npoints = 21,
+  col_fun = if (!is.null(col)) col else "blue",
+  col = NULL,
+  col_fading_interval = 0.5,
   mfrow = NULL,
   Xlab = NULL,
   ylab = NULL,
@@ -44,13 +46,12 @@
 \method{sectionview3d}{matrix}(
   X,
   y,
-  sdy = NULL,
   center = NULL,
   axis = NULL,
-  col_points = "red",
-  conf_lev = c(0.95),
-  conf_blend = NULL,
-  bg_blend = 1,
+  col_points = if (!is.null(col)) col else "red",
+  col = NULL,
+  col_fading_interval = 0.5,
+  bg_fading = 1,
   mfrow = NULL,
   Xlab = NULL,
   ylab = NULL,
@@ -62,17 +63,20 @@
   ...
 )
 
+\method{sectionview3d}{character}(eval_str, axis = NULL, mfrow = NULL, ...)
+
 \method{sectionview3d}{km}(
   km_model,
   type = "UK",
   center = NULL,
   axis = NULL,
-  npoints = 20,
-  col_points = "red",
-  col_surf = "blue",
-  conf_lev = c(0.95),
-  conf_blend = NULL,
-  bg_blend = 1,
+  npoints = 21,
+  col_points = if (!is.null(col)) col else "red",
+  col_fun = if (!is.null(col)) col else "blue",
+  col = NULL,
+  conf_level = 0.95,
+  conf_fading = 0.5,
+  bg_fading = 1,
   mfrow = NULL,
   Xlab = NULL,
   ylab = NULL,
@@ -88,12 +92,13 @@
   Kriging_model,
   center = NULL,
   axis = NULL,
-  npoints = 20,
-  col_points = "red",
-  col_surf = "blue",
-  conf_lev = c(0.95),
-  conf_blend = NULL,
-  bg_blend = 1,
+  npoints = 21,
+  col_points = if (!is.null(col)) col else "red",
+  col_fun = if (!is.null(col)) col else "blue",
+  col = NULL,
+  conf_level = 0.95,
+  conf_fading = 0.5,
+  bg_fading = 1,
   mfrow = NULL,
   Xlab = NULL,
   ylab = NULL,
@@ -109,12 +114,13 @@
   NuggetKriging_model,
   center = NULL,
   axis = NULL,
-  npoints = 20,
-  col_points = "red",
-  col_surf = "blue",
-  conf_lev = c(0.95),
-  conf_blend = NULL,
-  bg_blend = 1,
+  npoints = 21,
+  col_points = if (!is.null(col)) col else "red",
+  col_fun = if (!is.null(col)) col else "blue",
+  col = NULL,
+  conf_level = 0.95,
+  conf_fading = 0.5,
+  bg_fading = 1,
   mfrow = NULL,
   Xlab = NULL,
   ylab = NULL,
@@ -130,12 +136,13 @@
   NoiseKriging_model,
   center = NULL,
   axis = NULL,
-  npoints = 20,
-  col_points = "red",
-  col_surf = "blue",
-  conf_lev = c(0.95),
-  conf_blend = NULL,
-  bg_blend = 1,
+  npoints = 21,
+  col_points = if (!is.null(col)) col else "red",
+  col_fun = if (!is.null(col)) col else "blue",
+  col = NULL,
+  conf_level = 0.95,
+  conf_fading = 0.5,
+  bg_fading = 1,
   mfrow = NULL,
   Xlab = NULL,
   ylab = NULL,
@@ -151,12 +158,13 @@
   glm_model,
   center = NULL,
   axis = NULL,
-  npoints = 20,
-  col_points = "red",
-  col_surf = "blue",
-  conf_lev = c(0.95),
-  conf_blend = NULL,
-  bg_blend = 1,
+  npoints = 21,
+  col_points = if (!is.null(col)) col else "red",
+  col_fun = if (!is.null(col)) col else "blue",
+  col = NULL,
+  conf_level = 0.95,
+  conf_fading = 0.5,
+  bg_fading = 1,
   mfrow = NULL,
   Xlab = NULL,
   ylab = NULL,
@@ -172,10 +180,11 @@
   modelFit_model,
   center = NULL,
   axis = NULL,
-  npoints = 20,
-  col_points = "red",
-  col_surf = "blue",
-  bg_blend = 1,
+  npoints = 21,
+  col_points = if (!is.null(col)) col else "red",
+  col_fun = if (!is.null(col)) col else "blue",
+  col = NULL,
+  bg_fading = 1,
   mfrow = NULL,
   Xlab = NULL,
   ylab = NULL,
@@ -190,7 +199,7 @@
 sectionview3d(...)
 }
 \arguments{
-\item{fun}{a function or 'predict()'-like function that returns a simple numeric or mean and standard error: list(mean=...,se=...).}
+\item{fun}{a function or 'predict()'-like function that returns a simple numeric, or an interval, or mean and standard error: list(mean=...,se=...).}
 
 \item{vectorized}{is fun vectorized?}
 
@@ -202,11 +211,11 @@ sectionview3d(...)
 
 \item{npoints}{an optional number of points to discretize plot of response  surface and uncertainties.}
 
-\item{col_surf}{color for the surface.}
+\item{col_fun}{color of the function plot.}
 
-\item{conf_lev}{an optional list of confidence interval values to display.}
+\item{col}{color of the object (use col_* for specific objects).}
 
-\item{conf_blend}{an optional factor of alpha (color channel) blending used to plot confidence intervals.}
+\item{col_fading_interval}{an optional factor of alpha (color channel) fading used to plot confidence intervals.}
 
 \item{mfrow}{an optional list to force \code{par(mfrow = ...)} call. The default value  \code{NULL} is automatically set for compact view.}
 
@@ -228,17 +237,21 @@ sectionview3d(...)
 
 \item{X}{the matrix of input design.}
 
-\item{y}{the array of output values.}
-
-\item{sdy}{optional array of output standard error.}
+\item{y}{the array of output values (two columns means an interval).}
 
 \item{col_points}{color of points.}
 
-\item{bg_blend}{an optional factor of alpha (color channel) blending used to plot design points outside from this section.}
+\item{bg_fading}{an optional factor of alpha (color channel) fading used to plot design points outside from this section.}
+
+\item{eval_str}{the expression to evaluate in each subplot.}
 
 \item{km_model}{an object of class \code{"km"}.}
 
 \item{type}{the kriging type to use for model prediction.}
+
+\item{conf_level}{an optional list of confidence intervals to display.}
+
+\item{conf_fading}{an optional factor of alpha (color channel) fading used to plot confidence intervals.}
 
 \item{Kriging_model}{an object of class \code{"Kriging"}.}
 
@@ -261,25 +274,35 @@ x1 <- rnorm(15)
 x2 <- rnorm(15)
 
 y <- x1 + x2 + rnorm(15)
-DiceView:::open3d(); DiceView:::plot3d(x1,x2,y)
-
 model <- lm(y ~ x1 + x2)
 
+DiceView:::open3d();
+DiceView:::plot3d(x1,x2,y)
 sectionview3d(function(x) sum(x),
                      dim=2, Xlim=cbind(range(x1),range(x2)), add=TRUE, col='black')
 
 sectionview3d(function(x) {
                       x = as.data.frame(x)
-                      colnames(x) <- names(model$coefficients[-1])
+                      colnames(x) <- all.vars(model$call)[-1]
                       p = predict.lm(model, newdata=x, se.fit=TRUE)
                       list(mean=p$fit, se=p$se.fit)
-                    }, vectorized=TRUE, dim=2, Xlim=cbind(range(x1),range(x2)), add=TRUE)
+                    }, vectorized=TRUE, dim=2,
+              Xlim=cbind(range(x1),range(x2)), add=TRUE)
 
 X = matrix(runif(15*2),ncol=2)
 y = apply(X,1,branin)
 
 sectionview3d(X, y)
 
+x1 <- rnorm(15)
+x2 <- rnorm(15)
+
+y <- x1 + x2^2 + rnorm(15)
+model <- glm(y ~ x1 + I(x2^2))
+
+sectionview3d(model)
+
+sectionview3d("abline(h=0.25,col='red')")
 if (requireNamespace("DiceKriging")) { library(DiceKriging)
 
 X = matrix(runif(15*2),ncol=2)
@@ -362,7 +385,7 @@ sectionview3d(branin, dim=2, col='red', add=TRUE)
 
 if (requireNamespace("rlibkriging")) { library(rlibkriging)
 ## model: Kriging
-model <- rlibkriging::Kriging(X = as.matrix(design.fact), y = as.matrix(y), kernel="matern3_2")
+model <- Kriging(X = as.matrix(design.fact), y = as.matrix(y), kernel="matern3_2")
 sectionview3d(model)
 sectionview3d(branin, dim=2, col='red', add=TRUE)
 }
@@ -383,9 +406,10 @@ sectionview3d(branin, dim=2, col='red', add=TRUE)
 }
 \seealso{
 \code{\link{sectionview.function}} for a section plot, and \code{\link{sectionview3d.function}} for a 2D section plot.
-\code{\link{Vectorize.function}} to wrap as vectorized a non-vectorized function.
 
 \code{\link{sectionview.matrix}} for a section plot, and \code{\link{sectionview3d.matrix}} for a 2D section plot.
+
+\code{\link{sectionview3d.matrix}} for a section plot.
 
 \code{\link{sectionview.km}} for a section plot, and \code{\link{sectionview3d.km}} for a 2D section plot.
 

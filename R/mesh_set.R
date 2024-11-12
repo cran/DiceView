@@ -5,11 +5,11 @@
 #' @param threshold target value to inverse
 #' @param sign focus at conservative for above (sign=1) or below (sign=-1) the threshold
 #' @param intervals bounds to inverse in, each column contains min and max of each dimension
-#' @param mesh function or "unif" or "seq" (default) to preform interval partition
+#' @param mesh.type "unif" or "seq" (default) or "LHS" to preform interval partition
 #' @param mesh.sizes number of parts for mesh (duplicate for each dimension if using "seq")
 #' @param maxerror_f maximal tolerance on f precision
 #' @param ex_filter.tri boolean function to validate a geometry::tri as considered in excursion : 'any' or 'all'
-#' @param ... parameters to forward to mesh_roots(...) call
+#' @param ... parameters to forward to roots_mesh(...) call
 #' @param vectorized boolean: is f already vectorized ? (default: FALSE) or if function: vectorized version of f.
 #' @param tol the desired accuracy (convergence tolerance on f arg).
 #' @importFrom geometry delaunayn
@@ -35,7 +35,7 @@
 #'
 #'   if (requireNamespace("rgl")) {
 #'     e = mesh_exsets(function(x) (0.5+x[1])^2+(-0.5+x[2])^2+(0.+x[3])^2,
-#'                   threshold = .25,sign=-1, mesh="unif",
+#'                   threshold = .25,sign=-1, mesh.type="unif",
 #'                   intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2),
 #'                   maxerror_f=1E-2,tol=1E-2) # for faster testing
 #'
@@ -44,24 +44,24 @@
 #'   }
 #' }
 mesh_exsets = function (f, vectorized = FALSE, threshold, sign, intervals,
-          mesh = "seq", mesh.sizes = 11, maxerror_f = 1e-09, tol = .Machine$double.eps^0.25,
+          mesh.type = "seq", mesh.sizes = 11, maxerror_f = 1e-09, tol = .Machine$double.eps^0.25,
           ex_filter.tri = all, ...) {
     if (sign == "lower" || sign == -1 || sign == "inf" || sign == "<" || isFALSE(sign))
         return(
             mesh_exsets(f = function(...) { -f(...) }, vectorized = vectorized, threshold = -threshold, sign = 1,
-            intervals = intervals, mesh = mesh, mesh.sizes = mesh.sizes,
+            intervals = intervals, mesh.type = mesh.type, mesh.sizes = mesh.sizes,
             maxerror_f = maxerror_f, tol = tol, ...))
     if (sign != "upper" && sign != 1 && sign != "sup" && sign != ">" && !isTRUE(sign))
         stop("unknown sign: '", sign, "'")
 
-    if (is.matrix(mesh))
-        d = ncol(mesh)
+    if (is.matrix(mesh.type))
+        d = ncol(mesh.type)
     else if (is.matrix(intervals))
         d = ncol(intervals)
     else if (is.array(intervals))
         d = 1
     else
-        stop("cannot identify ncol of mesh")
+        stop("cannot identify dim of mesh")
 
     if (isTRUE(vectorized) && is.function(f))
         f_vec = function(x, ...) f(x, ...)
@@ -75,8 +75,8 @@ mesh_exsets = function (f, vectorized = FALSE, threshold, sign, intervals,
 
     f_0 <- function(...) return(f(...) - threshold)
     f_vec_0 <- function(...) return(f_vec(...) - threshold)
-    r <- mesh_roots(f = f_0, vectorized = f_vec_0, intervals = intervals,
-                    mesh = mesh, mesh.sizes = mesh.sizes, maxerror_f = maxerror_f,
+    r <- roots_mesh(f = f_0, vectorized = f_vec_0, intervals = intervals,
+                    mesh.type = mesh.type, mesh.sizes = mesh.sizes, maxerror_f = maxerror_f,
                     tol = tol, ...)
 
     if (all(is.na(r)))
@@ -87,22 +87,23 @@ mesh_exsets = function (f, vectorized = FALSE, threshold, sign, intervals,
     if (maxerror_f != 0) { # try add points on each side of the frontier
         f_inf <- function(...) return(f(...) - (threshold - maxerror_f))
         f_vec_inf <- function(...) return(f_vec(...) - (threshold - maxerror_f))
-        r_inf <- mesh_roots(f = f_inf, vectorized = f_vec_inf, intervals = intervals,
-                            mesh = mesh, mesh.sizes = mesh.sizes, maxerror_f = maxerror_f,
+        r_inf <- roots_mesh(f = f_inf, vectorized = f_vec_inf, intervals = intervals,
+                            mesh.type = mesh.type, mesh.sizes = mesh.sizes, maxerror_f = maxerror_f,
                             tol = tol, ...)
         if (!all(is.na(r_inf)))
             all_points = rbind(all_points, r_inf)
 
         f_sup <- function(...) return(f(...) - (threshold + maxerror_f))
         f_vec_sup <- function(...) return(f_vec(...) - (threshold + maxerror_f))
-        r_sup <- mesh_roots(f = f_sup, vectorized = f_vec_sup, intervals = intervals,
-                            mesh = mesh, mesh.sizes = mesh.sizes, maxerror_f = maxerror_f,
+        r_sup <- roots_mesh(f = f_sup, vectorized = f_vec_sup, intervals = intervals,
+                            mesh.type = mesh.type, mesh.sizes = mesh.sizes, maxerror_f = maxerror_f,
                             tol = tol, ...)
         if (!all(is.na(r_sup)))
             all_points = rbind(all_points, r_sup)
     }
 
-    new_mesh <- geometry::delaunayn(all_points, output.options = TRUE)
+    new_mesh <- mesh(intervals, mesh.type = all_points)
+
     new_mesh$y = f_vec(new_mesh$p, ...)
     I = which(apply(new_mesh$tri, 1,
               function(i) ex_filter.tri(new_mesh$y[i] >= (threshold - 2 * maxerror_f))))
@@ -116,67 +117,84 @@ mesh_exsets = function (f, vectorized = FALSE, threshold, sign, intervals,
 #' @title Plot a one dimensional mesh
 #' @param mesh 1-dimensional mesh to draw
 #' @param y ordinate value where to draw the mesh
-#' @param color color of the mesh
+#' @param color.nodes color of the mesh nodes
+#' @param color.mesh color of the mesh elements
+#' @param alpha transparency of the mesh elements & nodes
 #' @param ... optional arguments passed to plot function
 #' @import graphics
 #' @export
 #' @examples
 #' plot_mesh(mesh_exsets(function(x) x, threshold=.51, sign=1, intervals=rbind(0,1)))
 #' plot_mesh(mesh_exsets(function(x) (x-.5)^2, threshold=.1, sign=-1, intervals=rbind(0,1)))
-plot_mesh = function(mesh,y=0,color='black',...){
-    col.rgb=col2rgb(color)/255
-    plot(x=mesh$p,y=rep(y,length(mesh$p)),ylab="",col=rgb(col.rgb[1,],col.rgb[2,],col.rgb[3,],0.4),...)
-    apply(mesh$tri,1,function(tri) lines(mesh$p[tri,],y=rep(y,length(tri)),col=color))
+plot_mesh = function(mesh,y=0,color.nodes='black',color.mesh='darkgray',alpha=0.4, ...){
+    nodes.rgb=col2rgb(color.nodes)/255
+    p = plot(x=mesh$p,y=rep(y,length(mesh$p)),ylab="",col=rgb(nodes.rgb[1,],nodes.rgb[2,],nodes.rgb[3,],alpha),...)
+    mesh.rgb=col2rgb(color.mesh)/255
+    apply(mesh$tri,1,
+          function(tri) {
+              lines(mesh$p[tri,],y=rep(0,length(tri)),col=rgb(mesh.rgb[1,],mesh.rgb[2,],mesh.rgb[3,],alpha))
+              polygon(x=c(mesh$p[tri,],rev(mesh$p[tri,])),y=c(-1,-1,1,1),border = NA,col=rgb(mesh.rgb[1,],mesh.rgb[2,],mesh.rgb[3,],alpha))
+          })
+    invisible(p)
 }
 
 #' @title Plot a two dimensional mesh
 #' @param mesh 2-dimensional mesh to draw
-#' @param color color of the mesh
+#' @param color.nodes color of the mesh nodes
+#' @param color.mesh color of the mesh elements
+#' @param alpha transparency of the mesh elements & nodes
 #' @param ... optional arguments passed to plot function
 #' @import graphics
 #' @export
 #' @examples
 #' plot2d_mesh(mesh_exsets(f = function(x) sin(pi*x[1])*sin(pi*x[2]),
-#'                         threshold=0,sign=1, mesh="unif",mesh.size=11,
+#'                         threshold=0,sign=1, mesh.type="unif",mesh.size=11,
 #'                         intervals = matrix(c(1/2,5/2,1/2,5/2),nrow=2)))
-plot2d_mesh = function(mesh,color='black',...){
-    col.rgb=col2rgb(color)/255
-    plot(mesh$p,col=rgb(col.rgb[1,],col.rgb[2,],col.rgb[3,],0.4),...)
-    apply(mesh$tri,1,function(tri) polygon(mesh$p[c(tri,tri[1]),],border = color, col = rgb(0,0,0,.2)))
+plot2d_mesh = function(mesh,color.nodes='black',color.mesh='darkgray',alpha=0.4,...){
+    nodes.rgb=col2rgb(color.nodes)/255
+    p = plot(mesh$p,col=rgb(nodes.rgb[1,],nodes.rgb[2,],nodes.rgb[3,],alpha),...)
+    mesh.rgb=col2rgb(color.mesh)/255
+    apply(mesh$tri,1,
+          function(tri)
+              polygon(mesh$p[c(tri,tri[1]),],border = rgb(mesh.rgb[1,],mesh.rgb[2,],mesh.rgb[3,],alpha), col = rgb(mesh.rgb[1,],mesh.rgb[2,],mesh.rgb[3,],alpha)))
     # sapply(1:nrow(mesh$tri),function(i) {xy=colMeans(mesh$p[mesh$tri[i,],]);text(x = xy[1],y=xy[2],paste0(i))})
     # apply(mesh$tri,1,function(tri) points(mesh$p[tri,], col = rgb(0,0,0,1),pch=20))
+    invisible(p)
 }
 
 #' @title Plot a three dimensional mesh
 #' @param mesh 3-dimensional mesh to draw
 #' @param engine3d 3d framework to use: 'rgl' if installed or 'scatterplot3d' (default)
-#' @param color color of the mesh
+#' @param color.nodes color of the mesh nodes
+#' @param color.mesh color of the mesh elements
+#' @param alpha transparency of the mesh elements & nodes
 #' @param ... optional arguments passed to plot function
 #' @export
 #' @examples
 #' if (identical(Sys.getenv("NOT_CRAN"), "true")) { # too long for CRAN on Windows
 #'
 #'   plot3d_mesh(mesh_exsets(function(x) (0.5+x[1])^2+(-0.5+x[2])^2+(0.+x[3])^2,
-#'                           threshold = .25,sign=-1, mesh="unif",
+#'                           threshold = .25,sign=-1, mesh.type="unif",
 #'                           maxerror_f=1E-2,tol=1E-2, # faster display
 #'                           intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2)),
 #'                           engine3d='scatterplot3d')
 #'
 #'   if (requireNamespace("rgl")) {
 #'     plot3d_mesh(mesh_exsets(function(x) (0.5+x[1])^2+(-0.5+x[2])^2+(0.+x[3])^2,
-#'                             threshold = .25,sign=-1, mesh="unif",
+#'                             threshold = .25,sign=-1, mesh.type="unif",
 #'                             maxerror_f=1E-2,tol=1E-2, # faster display
 #'                             intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2)),engine3d='rgl')
 #'   }
 #' }
-plot3d_mesh = function(mesh,engine3d=NULL,color='black',...){
-    col.rgb=col2rgb(color)/255
+plot3d_mesh = function(mesh,engine3d=NULL,color.nodes='black',color.mesh='darkgray',alpha=0.4,...){
+    nodes.rgb=col2rgb(color.nodes)/255
     package = load3d(engine3d)
     if (is.null(package)) return()
-    p3d = plot3d(mesh$p,col=rgb(col.rgb[1,],col.rgb[2,],col.rgb[3,],0.4), package=package,...)
+    p3d = plot3d(mesh$p,col=rgb(nodes.rgb[1,],nodes.rgb[2,],nodes.rgb[3,],alpha), package=package,...)
+    mesh.rgb=col2rgb(color.mesh)/255
     apply(mesh$tri,1,function(tri) {
-        quads3d(mesh$p[tri,],col=color,alpha=0.05, package=package)
-        quads3d(mesh$p[tri,][c(4,3,2,1),],col=color,alpha=0.05, package=package)
+        quads3d(mesh$p[tri,],col=rgb(mesh.rgb[1,],mesh.rgb[2,],mesh.rgb[3,]),alpha=alpha/10, package=package)
+        quads3d(mesh$p[tri,][c(4,3,2,1),],col=rgb(mesh.rgb[1,],mesh.rgb[2,],mesh.rgb[3,]),alpha=alpha/10, package=package)
         # triangles3d(mesh$p[tri,][-1,],col=color,alpha=0.05, package=package)
         # triangles3d(mesh$p[tri,][-2,],col=color,alpha=0.05, package=package)
         # triangles3d(mesh$p[tri,][-3,],col=color,alpha=0.05, package=package)
@@ -250,7 +268,7 @@ is_in.mesh = function(x,mesh) {
                 isin = FALSE
                 try(isin <- is_in.p(x, mesh$p[mesh$tri[i,],, drop = FALSE]),silent = T) # to avoid coplanar errors in qhull
                 if (isin) return(TRUE)
-            } # else warning("Too flat element (",i,"): ",capture.output(print(mesh$p[mesh$tri[i,],, drop = FALSE])))
+            } # else warning("Too flat element (",i,"): ",utils::capture.output(print(mesh$p[mesh$tri[i,],, drop = FALSE])))
         # else warning("Too small element (",i,"): area=",mesh$areas[i])
         }
     return(FALSE)
@@ -287,4 +305,76 @@ points_in.mesh = function(mesh) {
 points_out.mesh = function(mesh) {
     if (is.null(mesh)) return(NULL)
     mesh$p[-unique(array(mesh$tri)),, drop = FALSE]
+}
+
+#' @title Checks if a mesh is valid
+#' @param x mesh to check
+#' @export
+#' @return TRUE if mesh is valid
+is.mesh = function(x) {
+    is.list(x) && all(c("p","tri") %in% names(x))
+}
+
+#### Build mesh (on hypercube) ####
+
+#' @title Builds a mesh from a design aor set of points
+#' @param intervals bounds to inverse in, each column contains min and max of each dimension
+#' @param mesh.type function or "unif" or "seq" (default) or "LHS" to preform interval partition
+#' @param mesh.sizes number of parts for mesh (duplicate for each dimension if using "seq")
+#' @return delaunay mesh (list(p,tri,...) from geometry)
+#' @export
+#' @examples
+#' mesh = mesh(intervals=matrix(c(0,1,0,1),ncol=2),mesh.type="unif",mesh.sizes=10)
+#' plot2d_mesh(mesh)
+mesh = function(intervals, mesh.type = "seq", mesh.sizes = 11) {
+    # setup bounds & dim
+    if (is.matrix(intervals)) {
+        lowers = apply(intervals, 2, min)
+        uppers = apply(intervals, 2, max)
+        d = ncol(intervals)
+    } else if (is.null(intervals) && is.matrix(mesh.type)) {
+        lowers = apply(mesh.type, 2, min)
+        uppers = apply(mesh.type, 2, max)
+        d = ncol(mesh.type)
+    } else
+        d = 1
+
+    if (length(mesh.sizes) != d)
+        mesh.size = rep(mesh.sizes, d)
+
+    if (is.matrix(mesh.type)) {
+        ridge.points = mesh.type
+    } else if (is.function(mesh.type)) {
+        ridge.points = mesh.type(prod(mesh.size), lowers, uppers)
+    } else if (mesh.type == "seq") {
+        ridge.points = matrix(seq(f = lowers[1], to = uppers[1],
+                                  length.out = mesh.size[1]), ncol = 1)
+        for (i in 2:d) {
+            ridge.points = combn.design(ridge.points, matrix(seq(f = lowers[i], to = uppers[i], length.out = mesh.size[i]), ncol = 1))
+        }
+    } else if (mesh.type == "unif") {
+        ridge.points = matrix(runif(n = d * prod(mesh.size),
+                                    min = 0, max = 1), ncol = d)
+        ridge.points = matrix(lowers, ncol = d, nrow = nrow(ridge.points),
+                              byrow = TRUE) +
+            ridge.points * (matrix(uppers, ncol = d, nrow = nrow(ridge.points), byrow = TRUE) -
+                                matrix(lowers, ncol = d, nrow = nrow(ridge.points), byrow = TRUE))
+
+    } else if (mesh.type == "LHS") {
+        ridge.points = DiceDesign::lhsDesign(prod(mesh.size), dimension = d)$design
+        ridge.points = matrix(lowers, ncol = d, nrow = nrow(ridge.points), byrow = TRUE) +
+            ridge.points * (matrix(uppers, ncol = d, nrow = nrow(ridge.points), byrow = TRUE) -
+                                matrix(lowers, ncol = d, nrow = nrow(ridge.points), byrow = TRUE))
+
+    } else stop("unsupported mesh setup : ", mesh.type)
+
+    # add bounds
+    b = cbind(lowers[1], uppers[1])
+    if (d>1) for (id in 1:(d - 1)) { # efficient way for factorial design
+        b = rbind(cbind(b, lowers[id + 1]), cbind(b, uppers[id + 1]))
+    }
+    for (i in 1:nrow(b)) if (min_dist(b[i, ], ridge.points) > .Machine$double.eps)
+        ridge.points = rbind(ridge.points, b[i, ])
+
+    return( geometry::delaunayn(ridge.points, output.options = TRUE) )
 }
