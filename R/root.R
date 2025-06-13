@@ -1,5 +1,89 @@
 #### Generalization of root finding ####
 
+# Brent's method root-finding (translated from C version in stats::R_zeroin2)
+R_zeroin2 <- function(f, ax, bx, fa, fb, Tol, Maxit) {
+  EPSILON <- .Machine$double.eps
+  a <- ax
+  b <- bx
+  c <- a
+  fc <- fa
+  maxit <- Maxit + 1
+  tol <- Tol
+
+  if (fa == 0.0) {
+    Tol <- 0.0
+    Maxit <- 0
+    return(a)
+  }
+  if (fb == 0.0) {
+    Tol <- 0.0
+    Maxit <- 0
+    return(b)
+  }
+
+  while (maxit > 0) {
+    maxit <- maxit - 1
+    prev_step <- b - a
+    tol_act <- 2 * EPSILON * abs(b) + tol / 2
+    new_step <- (c - b) / 2
+
+    if (abs(new_step) <= tol_act || fb == 0.0) {
+      Maxit <- Maxit - maxit
+      Tol <- abs(c - b)
+      return(b)
+    }
+
+    if (abs(prev_step) >= tol_act && abs(fa) > abs(fb)) {
+      cb <- c - b
+      if (a == c) {
+        # Linear interpolation
+        t1 <- fb / fa
+        p <- cb * t1
+        q <- 1.0 - t1
+      } else {
+        # Quadratic inverse interpolation
+        qv <- fa / fc
+        t1 <- fb / fc
+        t2 <- fb / fa
+        p <- t2 * (cb * qv * (qv - t1) - (b - a) * (t1 - 1.0))
+        q <- (qv - 1.0) * (t1 - 1.0) * (t2 - 1.0)
+      }
+      if (exists("q")) {
+        if (p > 0) {
+          q <- -q
+        } else {
+          p <- -p
+        }
+        if (p < (0.75 * cb * q - abs(tol_act * q) / 2) &&
+            p < abs(prev_step * q / 2)) {
+          new_step <- p / q
+        }
+      }
+    }
+
+    if (abs(new_step) < tol_act) {
+      if (new_step > 0) {
+        new_step <- tol_act
+      } else {
+        new_step <- -tol_act
+      }
+    }
+
+    a <- b
+    fa <- fb
+    b <- b + new_step
+    fb <- f(b)
+    if ((fb > 0 && fc > 0) || (fb < 0 && fc < 0)) {
+      c <- a
+      fc <- fa
+    }
+  }
+
+  Tol <- abs(c - b)
+  Maxit <- -1
+  return(b)
+}
+
 #' @title One Dimensional Root (Zero) Finding
 #' @description Search one root with given precision (on y). Iterate over uniroot as long as necessary.
 #' @param f the function for which the root is sought.
@@ -13,7 +97,6 @@
 #' @param rec counter of recursive level.
 #' @param max.rec maximal number of recursive level before failure (stop).
 #' @param ... additional named or unnamed arguments to be passed to f.
-#' @import stats
 #' @export
 #' @author Yann Richet, IRSN
 #' @examples
@@ -89,15 +172,50 @@ root <- function(f, lower, upper, maxerror_f = 1e-07,
                 tol = tol, convexity = convexity, rec=rec+1, ...))
     }
     r = NULL
-    try(r <- uniroot(f = f, lower = lower, upper = upper,
-                     f.lower = f_lower, f.upper = f_upper,
-                     tol = tol, ...), silent = FALSE)
+    ## Safe but slow
+    #   try(r <- uniroot(f = f, lower = lower, upper = upper,
+    #                  f.lower = f_lower, f.upper = f_upper,
+    #                  tol = tol, ...)$root, silent = FALSE)
+    ## Cannot use C function form stats, as raise WARNING for CRAN
+    # r <- .Call(stats:::zeroin2, function(x) f(x, ...),
+    #                 lower, upper, f.lower = f_lower, f.upper = f_upper, tol, 1000)[1]
+    ## Use a R port instead
+    r <- R_zeroin2(f = function(x) f(x, ...),
+                        ax = lower, bx = upper,
+                        fa = f_lower, fb = f_upper,
+                        Tol = tol, Maxit = 1000)
     if (is.null(r)) {
         warning(paste0("No root found in [", lower, ",", upper, "] -> [", f_lower, ",", f_upper, "]"))
         return(NULL)
     }
 
-    r_root = r$root
+## benchmark uniroot / C_zeroin2 : 6 times faster (!)
+# f = function(x) x^2-1.2
+# f_lower = f(0)
+# f_upper = f(2)
+# tol= 1e-5
+# rbenchmark::benchmark(
+#   brentDekker = pracma::brentDekker(f, a=0, b=2,
+#                         # f.lower = f_lower, f.upper = f_upper,
+#                         tol = tol, maxiter=1000),
+#   brent = pracma::brent(f, a=0, b=2,
+#                         # f.lower = f_lower, f.upper = f_upper,
+#                         tol = tol, maxiter=1000),
+#   fzero = pracma::fzero(f, x=1,
+#                         # lower = 0, upper = 2,
+#            # f.lower = f_lower, f.upper = f_upper,
+#            tol = tol, maxiter=1000),
+#   uniroot = uniroot(f = f, lower = 0, upper = 2,
+#                     f.lower = f_lower, f.upper = f_upper,
+#                     tol = tol, maxiter=1000,extendInt="no"),
+#   C_zeroin2 = .External2(stats:::C_zeroin2, f,
+#                           0, 2, f.lower = f_lower, f.upper = f_upper, tol, 1000)[1],
+#   replications = 1000,
+#   columns = c("test", "replications", "elapsed", "relative"),
+#   order = "relative"
+# )
+
+    r_root = r
     f_root = f(r_root, ...)
     err = abs(f_root)/maxerror_f
 
@@ -140,7 +258,7 @@ root <- function(f, lower, upper, maxerror_f = 1e-07,
         } else stop(paste0("Error in root at x0=",x0,", f(x0)=",f_x0," root=",r_root," f(root)=",f_root))
 
     } else stop(paste0("Error in root with lower=",lower," r_root=",r_root,", upper=",upper,", f_lower=",f_lower," f_root=",f_root,", f_upper=",f_upper))
-  } else r$root
+  } else r_root
 }
 
 #' @title One Dimensional Multiple Roots (Zero) Finding
@@ -235,9 +353,10 @@ min_dist <- function (x, X, norm=rep(1,ncol(X))){
 #' @param intervals bounds to inverse in, each column contains min and max of each dimension
 #' @param mesh.type function or "unif" or "seq" (default) to preform interval partition
 #' @param mesh.sizes number of parts for mesh (duplicate for each dimension if using "seq")
-#' @param vectorized is f already vectorized ? (default: no)
+#' @param vectorized vectorized f: function, TRUE (use f directly), or wrap in Vectorize.function: FALSE (default args), "lapply", "mclapply", ...
 #' @param maxerror_f the maximum error on f evaluation (iterates over uniroot to converge).
 #' @param tol the desired accuracy (convergence tolerance on f arg).
+#' @param num_workers number of parallel roots finding
 #' @param ... Other args for f
 #' @import stats
 #' @importFrom DiceDesign lhsDesign
@@ -245,25 +364,36 @@ min_dist <- function (x, X, norm=rep(1,ncol(X))){
 #' @export
 #' @return matrix of x, so f(x)=0
 #' @examples
-#' roots_mesh(function(x) x-.51, intervals=rbind(0,1))
-#' roots_mesh(function(x) sum(x)-.51, intervals=cbind(rbind(0,1),rbind(0,1)))
-#' roots_mesh(sin,intervals=c(pi/2,5*pi/2))
+#' roots_mesh(function(x) x-.51, intervals=rbind(0,1),
+#'   num_workers=1)
+#' roots_mesh(function(x) sum(x)-.51, intervals=cbind(rbind(0,1),rbind(0,1)),
+#'   num_workers=1)
+#' roots_mesh(sin,intervals=c(pi/2,5*pi/2),
+#'   num_workers=1)
 #' roots_mesh(f = function(x) sin(pi*x[1])*sin(pi*x[2]),
-#'            intervals = matrix(c(1/2,5/2,1/2,5/2),nrow=2))
+#'            intervals = matrix(c(1/2,5/2,1/2,5/2),nrow=2),
+#'            num_workers=1)
 #'
 #' r = roots_mesh(f = function(x) (0.25+x[1])^2+(0.5+x[2])^2 - .25,
-#' intervals=matrix(c(-1,1,-1,1),nrow=2), mesh.size=5)
+#' intervals=matrix(c(-1,1,-1,1),nrow=2), mesh.size=5,
+#'   num_workers=1)
 #' plot(r,xlim=c(-1,1),ylim=c(-1,1))
 #'
 #' r = roots_mesh(function(x) (0.5+x[1])^2+(-0.5+x[2])^2+(0.+x[3])^2 - .5,
 #'                mesh.sizes = 11,
-#'                intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2))
+#'                intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2),
+#'                num_workers=1)
 #' scatterplot3d::scatterplot3d(r,xlim=c(-1,1),ylim=c(-1,1),zlim=c(-1,1))
 #'
-#' roots_mesh(function(x)exp(x)-1,intervals=c(-1,2))
-#' roots_mesh(function(x)exp(1000*x)-1,intervals=c(-1,2))
+#' roots_mesh(function(x)exp(x)-1,intervals=c(-1,2),
+#'            num_workers=1)
+#' roots_mesh(function(x)exp(1000*x)-1,intervals=c(-1,2),
+#'            num_workers=1)
 roots_mesh = function (f, vectorized = FALSE, intervals, mesh.type = "seq", mesh.sizes = 11,
-                       maxerror_f = 1e-07, tol = .Machine$double.eps^0.25, ...) {
+                       maxerror_f = 1e-07, tol = .Machine$double.eps^0.25, num_workers=maxWorkers(), ...) {
+
+  # .t1 <<- Sys.time()
+
   # if (is.matrix(intervals)) {
   #   lowers = apply(intervals, 2, min)
   #   uppers = apply(intervals, 2, max)
@@ -282,9 +412,13 @@ roots_mesh = function (f, vectorized = FALSE, intervals, mesh.type = "seq", mesh
   else
     d = 1
 
-  if (d == 1)
-    return(roots(f, vectorized = vectorized, interval = intervals, split = mesh.type, split.size = mesh.sizes,
-                 maxerror_f = maxerror_f, tol = tol, ...))
+  if (d == 1) {
+    r = roots(f, vectorized = vectorized, interval = intervals, split = mesh.type, split.size = mesh.sizes,
+              maxerror_f = maxerror_f, tol = tol, ...)
+    # warning(paste0("    [roots_mesh] roots d=1: ",Sys.time() - .t1))
+    # .t1 <<- Sys.time()
+    return(r)
+  }
 
   # if (length(mesh.sizes) != d)
   #   mesh.size = rep(mesh.sizes, d)
@@ -324,19 +458,25 @@ roots_mesh = function (f, vectorized = FALSE, intervals, mesh.type = "seq", mesh
   # simplexes <- geometry::delaunayn(ridge.points, output.options = TRUE)
 
   simplexes = mesh(intervals, mesh.type, mesh.sizes)
+  # warning(paste0("    [roots_mesh] mesh: ",Sys.time() - .t1))
+  # .t1 <<- Sys.time()
   ridge.points = simplexes$p
 
-  if (isTRUE(vectorized) && is.function(f))
+  if (isTRUE(vectorized) && is.function(f)) {
     f_vec = function(x, ...) f(x, ...)
-  else if (is.function(vectorized)) {
+  } else if (is.function(vectorized)) {
     f_vec = function(x, ...) vectorized(x, ...)
     if (is.null(f)) f = f_vec
-  } else if (isFALSE(vectorized) && !is.null(f))
+  } else if (isFALSE(vectorized) && !is.null(f)) {
     f_vec = Vectorize.function(f, dim = ncol(ridge.points))
-  else
+  } else if (is.character(vectorized) && !is.null(f)) {
+    f_vec = Vectorize.function(f, dim = ncol(ridge.points), .lapply = match.fun(vectorized))
+  } else
     stop("Cannot decide how to vectorize f")
 
   ridge.y = f_vec(ridge.points, ...)
+  # warning(paste0("    [roots_mesh] f_vec: ",Sys.time() - .t1))
+  # .t1 <<- Sys.time()
 
   if (requireNamespace("arrangements"))
     tcombn2 = function(x) arrangements::combinations(x, 2)
@@ -349,6 +489,8 @@ roots_mesh = function (f, vectorized = FALSE, intervals, mesh.type = "seq", mesh
       if (ridge.y[more_ridges[j,1]] * ridge.y[more_ridges[j, 2]] < 0)
         ridges = rbind(ridges, more_ridges[j, ])
   }
+  # warning(paste0("    [roots_mesh] comb: ",Sys.time() - .t1))
+  # .t1 <<- Sys.time()
 
   if (is.null(ridges)) {
     r = NA
@@ -376,18 +518,41 @@ roots_mesh = function (f, vectorized = FALSE, intervals, mesh.type = "seq", mesh
   #     else return(NULL)
   # }, .combine = rbind)
 
-  r = do.call(rbind,parallel::mclapply(X = 1:nrow(ridges), FUN = function(ridge_i,...) {
-    X = ridge.points[ridges[ridge_i,], , drop = FALSE]
-    y = ridge.y[ridges[ridge_i,]]
-    if (isFALSE((all(y > 0) || all(y < 0)))) {
-      f_r = function(alpha, ...) {
-        as.numeric(f(alpha * X[1, ] + (1 - alpha) * X[2, ], ...))} # assumes one only root (inside current mesh element)
-      alpha_i = 0 # default value if root finding fails after:
-      try({alpha_i <- root(f=f_r, lower = 0, upper = 1, maxerror_f = maxerror_f,
-                           tol = tol, f_lower = y[2], f_upper = y[1], max.rec=10, ...)})
-      return(alpha_i * X[1, ,drop=FALSE] + (1 - alpha_i) * X[2, ,drop=FALSE])
-    } else return(NULL)
-  }))
+  root_fun = function(y,X,maxerror_f,tol) {
+      if (isFALSE((all(y > 0) || all(y < 0)))) {
+          f_r = function(alpha, ...) {
+              as.numeric(f(alpha * X[1, ] + (1 - alpha) * X[2, ], ...))} # assumes one only root (inside current mesh element)
+          alpha_i = 0 # default value if root finding fails after:
+          try({alpha_i <- root(f=f_r, lower = 0, upper = 1, maxerror_f = maxerror_f,
+                               tol = tol, f_lower = y[2], f_upper = y[1], max.rec=10, ...)})
+          #return(alpha_i * X[1, ,drop=FALSE] + (1 - alpha_i) * X[2, ,drop=FALSE])
+          # benchmark:
+          #X = matrix(runif(10),ncol=5)
+          #alpha_i = 0.25
+          #rbenchmark::benchmark({c(alpha_i,1-alpha_i)%*%X},{alpha_i * X[1, ,drop=FALSE] + (1 - alpha_i) * X[2, ,drop=FALSE]},replications=100000)
+          return( c(alpha_i,1-alpha_i) %*% X )
+      } else return(NULL)
+  }
+
+  if (num_workers>1)
+      r = do.call(rbind,parallel::mclapply(X = 1:nrow(ridges), FUN = function(ridge_i,...) {
+        root_fun( y = ridge.y[ridges[ridge_i,]],
+                  X = ridge.points[ridges[ridge_i,], , drop = FALSE],
+                  maxerror_f,tol)
+      }, mc.cores=num_workers))
+  else
+      r = do.call(rbind,lapply(X = 1:nrow(ridges), FUN = function(ridge_i,...) {
+          root_fun( y = ridge.y[ridges[ridge_i,]],
+                    X = ridge.points[ridges[ridge_i,], , drop = FALSE],
+                    maxerror_f,tol)
+      }))
+  # r = apply(matrix(1:nrow(ridges)), 1, function(ridge_i) {
+  #         root_fun( y = ridge.y[ridges[ridge_i,]],
+  #                   X = ridge.points[ridges[ridge_i,], , drop = FALSE],
+  #                   maxerror_f,tol)})
+
+  # warning(paste0("    [roots_mesh] ridges root_fun: ",Sys.time() - .t1))
+  # .t1 <<- Sys.time()
 
   if (is.null(r) || length(r) == 0)
     r = NA

@@ -21,24 +21,28 @@
 \method{filledcontourview}{`function`}(
   fun,
   vectorized = FALSE,
-  dim = NULL,
   center = NULL,
   lty_center = 2,
   col_center = "black",
   axis = NULL,
   npoints = 21,
   levels = 10,
-  lty_levels = 1,
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels - 1) else
-    col.levels("blue", levels - 1),
+  lty_levels = 0,
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels, fill = TRUE)
+    else if (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels, fill =
+    TRUE) else col.levels("blue", levels, fill = TRUE),
   col = NULL,
+  col_interval = "white",
   col_fading_interval = 0.5,
   mfrow = NULL,
   Xlab = NULL,
   ylab = NULL,
-  Xlim = NULL,
+  Xlim = if (!add) matrix(c(0, 1), 2, 2) else NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
+  add_fading = 0.5,
   ...
 )
 
@@ -48,10 +52,12 @@
   center = NULL,
   axis = NULL,
   npoints = 21,
-  levels = pretty(km_model@y, 10),
+  levels = pretty(c(km_model@y + 2 * sqrt(km_model@covariance@sd2), km_model@y - 2 *
+    sqrt(km_model@covariance@sd2)), 10),
   col_points = if (!is.null(col) & length(col) == 1) col else "red",
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else
-    col.levels("blue", levels),
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels, fill = TRUE)
+    else if (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels, fill =
+    TRUE) else col.levels("blue", levels, fill = TRUE),
   col = NULL,
   conf_level = 0.5,
   conf_fading = 0.5,
@@ -60,7 +66,9 @@
   Xlab = NULL,
   ylab = NULL,
   Xlim = NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -72,8 +80,9 @@
   npoints = 21,
   levels = pretty(Kriging_model$y(), 10),
   col_points = if (!is.null(col) & length(col) == 1) col else "red",
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else
-    col.levels("blue", levels),
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels, fill = TRUE)
+    else if (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels, fill =
+    TRUE) else col.levels("blue", levels, fill = TRUE),
   col = NULL,
   conf_level = 0.5,
   conf_fading = 0.5,
@@ -82,7 +91,9 @@
   Xlab = NULL,
   ylab = NULL,
   Xlim = NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -94,8 +105,9 @@
   npoints = 21,
   levels = pretty(NuggetKriging_model$y(), 10),
   col_points = if (!is.null(col) & length(col) == 1) col else "red",
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else
-    col.levels("blue", levels),
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels, fill = TRUE)
+    else if (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels, fill =
+    TRUE) else col.levels("blue", levels, fill = TRUE),
   col = NULL,
   conf_level = 0.5,
   conf_fading = 0.5,
@@ -104,7 +116,9 @@
   Xlab = NULL,
   ylab = NULL,
   Xlim = NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -116,8 +130,9 @@
   npoints = 21,
   levels = pretty(NoiseKriging_model$y(), 10),
   col_points = if (!is.null(col) & length(col) == 1) col else "red",
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else
-    col.levels("blue", levels),
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels, fill = TRUE)
+    else if (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels, fill =
+    TRUE) else col.levels("blue", levels, fill = TRUE),
   col = NULL,
   conf_level = 0.5,
   conf_fading = 0.5,
@@ -126,7 +141,9 @@
   Xlab = NULL,
   ylab = NULL,
   Xlim = NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -138,8 +155,9 @@
   npoints = 21,
   levels = pretty(glm_model$fitted.values, 10),
   col_points = if (!is.null(col) & length(col) == 1) col else "red",
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else
-    col.levels("blue", levels),
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels, fill = TRUE)
+    else if (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels, fill =
+    TRUE) else col.levels("blue", levels, fill = TRUE),
   col = NULL,
   conf_level = 0.5,
   conf_fading = 0.5,
@@ -148,7 +166,9 @@
   Xlab = NULL,
   ylab = NULL,
   Xlim = NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -160,15 +180,18 @@
   npoints = 21,
   levels = pretty(modelFit_model$data$Y, 10),
   col_points = if (!is.null(col) & length(col) == 1) col else "red",
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else
-    col.levels("blue", levels),
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels, fill = TRUE)
+    else if (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels, fill =
+    TRUE) else col.levels("blue", levels, fill = TRUE),
   col = NULL,
   bg_fading = 1,
   mfrow = NULL,
   Xlab = NULL,
   ylab = NULL,
   Xlim = NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -179,8 +202,6 @@ filledcontourview(...)
 \item{fun}{a function or 'predict()'-like function that returns a simple numeric or mean and standard error: list(mean=...,se=...).}
 
 \item{vectorized}{is fun vectorized?}
-
-\item{dim}{input variables dimension of the model or function.}
 
 \item{center}{optional coordinates (as a list or data frame) of the center of the section view if the model's dimension is > 2.}
 
@@ -200,6 +221,8 @@ filledcontourview(...)
 
 \item{col}{color of the object (use col_* for specific objects).}
 
+\item{col_interval}{color to display interval width.}
+
 \item{col_fading_interval}{an optional factor of alpha (color channel) fading used to plot function output intervals (if any).}
 
 \item{mfrow}{an optional list to force \code{par(mfrow = ...)} call. The default value  \code{NULL} is automatically set for compact view.}
@@ -210,9 +233,15 @@ filledcontourview(...)
 
 \item{Xlim}{an optional list to force x range for all plots. The default value \code{NULL} is automatically set to include all design points.}
 
+\item{ylim}{an optional list to force y range for all plots.}
+
 \item{title}{an optional overload of main title.}
 
+\item{title_sep}{customize subtitle with fixed input.}
+
 \item{add}{to print graphics on an existing window.}
+
+\item{add_fading}{an optional factor of alpha (color channel) fading used to plot when add=TRUE.}
 
 \item{...}{arguments of the \code{filledcontourview.km}, \code{filledcontourview.glm}, \code{filledcontourview.Kriging} or \code{filledcontourview.function} function}
 
@@ -252,7 +281,7 @@ y <- x1 + x2 + rnorm(15)
 model <- lm(y ~ x1 + x2)
 
 filledcontourview(function(x) sum(x),
-                     dim=2, Xlim=cbind(range(x1),range(x2)), col='black')
+                     Xlim=cbind(range(x1),range(x2)), col='black')
 points(x1,x2)
 
 filledcontourview(function(x) {
@@ -326,7 +355,7 @@ filledcontourview(model)
 }
 
 ## A 2D example - Branin-Hoo function
-filledcontourview(branin, dim=2, levels=30, col='black')
+filledcontourview(branin, levels=30, col='black')
 
 \dontrun{
 ## a 16-points factorial design, and the corresponding response
@@ -339,26 +368,26 @@ if (requireNamespace("DiceKriging")) { library(DiceKriging)
 ## model: km
 model <- DiceKriging::km(design = design.fact, response = y)
 filledcontourview(model, levels=30)
-filledcontourview(branin, dim=2, levels=30, col='red', add=TRUE)
+filledcontourview(branin, levels=30, col='red', add=TRUE)
 }
 
 if (requireNamespace("rlibkriging")) { library(rlibkriging)
 ## model: Kriging
 model <- Kriging(X = as.matrix(design.fact), y = as.matrix(y), kernel="matern3_2")
 filledcontourview(model, levels=30)
-filledcontourview(branin, dim=2, levels=30, col='red', add=TRUE)
+filledcontourview(branin, levels=30, col='red', add=TRUE)
 }
 
 ## model: glm
 model <- glm(y ~ 1+ x1 + x2 + I(x1^2) + I(x2^2) + x1*x2, data=cbind(y,design.fact))
 filledcontourview(model, levels=30)
-filledcontourview(branin, dim=2, levels=30, col='red', add=TRUE)
+filledcontourview(branin, levels=30, col='red', add=TRUE)
 
 if (requireNamespace("DiceEval")) { library(DiceEval)
 ## model: StepLinear
 model <- modelFit(design.fact, y, type = "StepLinear")
 filledcontourview(model, levels=30)
-filledcontourview(branin, dim=2, levels=30, col='red', add=TRUE)
+filledcontourview(branin, levels=30, col='red', add=TRUE)
 }
 }
 

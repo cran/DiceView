@@ -60,6 +60,7 @@ Vectorize.function = function(fun, dim, .combine=rbind, .lapply=parallel::mclapp
 #' @title Memoize a function
 #' @description Before each call of a function, check that the cache holds the results and returns it if available. Otherwise, compute f and cache the result for next evluations.
 #' @param fun function to memoize
+#' @param suffix suffix to use for cache files (default ".RcacheDiceView")
 #' @return a function with same behavior than argument one, but using cache.
 #' @importFrom R.cache loadCache
 #' @importFrom R.cache saveCache
@@ -68,10 +69,10 @@ Vectorize.function = function(fun, dim, .combine=rbind, .lapply=parallel::mclapp
 #' f=function(n) rnorm(n);
 #' F=Memoize.function(f);
 #' F(5); F(6); F(5)
-Memoize.function <- function(fun) {
+Memoize.function <- function(fun, suffix=".RcacheDiceView") {
     function(...) {
         arg = list(...)
-        res <- loadCache(arg)
+        res <- loadCache(arg, suffix=suffix)
         if (!is.null(res)) {
             # cat("Loaded cached result\n")
             #cat(".")
@@ -83,7 +84,7 @@ Memoize.function <- function(fun) {
         res <- fun(...)
         # Emulate slow algorithm
         # cat("ok\n")
-        saveCache(res, key=arg, comment="fun()")
+        saveCache(res, key=arg, comment="DiceView", suffix=suffix)
         res
     }
 }
@@ -93,7 +94,8 @@ Memoize.function <- function(fun) {
 #' @param d number of variables (taken in following arguments with modulo)
 #' @param ... variables to combine, as arrays of values
 #' @return data frame of all possible combinations of variables values
-#' @tests
+#' @export
+#' @examples
 #' expand.grids(d=1)
 #' expand.grids(d=1,seq(f=0,t=1,l=11))
 #' expand.grids(d=2)

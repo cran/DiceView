@@ -12,45 +12,55 @@
 #' @param ... parameters to forward to roots_mesh(...) call
 #' @param vectorized boolean: is f already vectorized ? (default: FALSE) or if function: vectorized version of f.
 #' @param tol the desired accuracy (convergence tolerance on f arg).
+#' @param num_workers number of cores to use for parallelization
 #' @importFrom geometry delaunayn
+#' @importFrom utils combn
 #' @export
 #' @examples
 #' # mesh_exsets(function(x) x, threshold=.51, sign=1, intervals=rbind(0,1),
-#' #   maxerror_f=1E-2,tol=1E-2) # for faster testing
+#' #   maxerror_f=1E-2,tol=1E-2, num_workers=1) # for faster testing
 #' # mesh_exsets(function(x) x, threshold=.50000001, sign=1, intervals=rbind(0,1),
-#' #   maxerror_f=1E-2,tol=1E-2) # for faster testing
+#' #   maxerror_f=1E-2,tol=1E-2, num_workers=1) # for faster testing
 #' # mesh_exsets(function(x) sum(x), threshold=.51,sign=1, intervals=cbind(rbind(0,1),rbind(0,1)),
-#' #   maxerror_f=1E-2,tol=1E-2) # for faster testing
+#' #   maxerror_f=1E-2,tol=1E-2, num_workers=1) # for faster testing
 #' # mesh_exsets(sin,threshold=0,sign="sup",interval=c(pi/2,5*pi/2),
-#' #   maxerror_f=1E-2,tol=1E-2) # for faster testing
+#' #   maxerror_f=1E-2,tol=1E-2, num_workers=1) # for faster testing
 #'
 #' if (identical(Sys.getenv("NOT_CRAN"), "true")) { # too long for CRAN on Windows
 #'
 #'   e = mesh_exsets(function(x) (0.25+x[1])^2+(0.5+x[2])^2 ,
 #'                 threshold =0.25,sign=-1, intervals=matrix(c(-1,1,-1,1),nrow=2),
-#'                 maxerror_f=1E-2,tol=1E-2) # for faster testing
+#'                 maxerror_f=1E-2,tol=1E-2, # for faster testing
+#'                 num_workers=1)
 #'
 #'   plot(e$p,xlim=c(-1,1),ylim=c(-1,1));
 #'   apply(e$tri,1,function(tri) polygon(e$p[tri,],col=rgb(.4,.4,.4,.4)))
+#'   apply(e$frontiers,1,function(front) lines(e$p[front,],col='red'))
 #'
 #'   if (requireNamespace("rgl")) {
 #'     e = mesh_exsets(function(x) (0.5+x[1])^2+(-0.5+x[2])^2+(0.+x[3])^2,
 #'                   threshold = .25,sign=-1, mesh.type="unif",
 #'                   intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2),
-#'                   maxerror_f=1E-2,tol=1E-2) # for faster testing
+#'                   maxerror_f=1E-2,tol=1E-2, # for faster testing
+#'                   num_workers=1)
 #'
 #'     rgl::plot3d(e$p,xlim=c(-1,1),ylim=c(-1,1),zlim=c(-1,1));
 #'     apply(e$tri,1,function(tri)rgl::lines3d(e$p[tri,]))
 #'   }
 #' }
 mesh_exsets = function (f, vectorized = FALSE, threshold, sign, intervals,
-          mesh.type = "seq", mesh.sizes = 11, maxerror_f = 1e-09, tol = .Machine$double.eps^0.25,
-          ex_filter.tri = all, ...) {
+      mesh.type = "seq", mesh.sizes = 11, maxerror_f = 1e-09, tol = .Machine$double.eps^0.25,
+      ex_filter.tri = all, num_workers=maxWorkers(), ...) {
+    # .t0 <<- Sys.time()
+
     if (sign == "lower" || sign == -1 || sign == "inf" || sign == "<" || isFALSE(sign))
         return(
-            mesh_exsets(f = function(...) { -f(...) }, vectorized = vectorized, threshold = -threshold, sign = 1,
-            intervals = intervals, mesh.type = mesh.type, mesh.sizes = mesh.sizes,
-            maxerror_f = maxerror_f, tol = tol, ...))
+            mesh_exsets(f = function(...) { -f(...) },
+                        vectorized = vectorized, threshold = -threshold, sign = 1,
+                        intervals = intervals, mesh.type = mesh.type, mesh.sizes = mesh.sizes,
+                        maxerror_f = maxerror_f, tol = tol, ex_filter.tri=ex_filter.tri,
+                        num_workers=num_workers, ...))
+
     if (sign != "upper" && sign != 1 && sign != "sup" && sign != ">" && !isTRUE(sign))
         stop("unknown sign: '", sign, "'")
 
@@ -63,53 +73,77 @@ mesh_exsets = function (f, vectorized = FALSE, threshold, sign, intervals,
     else
         stop("cannot identify dim of mesh")
 
-    if (isTRUE(vectorized) && is.function(f))
+    if (isTRUE(vectorized) && is.function(f)) {
         f_vec = function(x, ...) f(x, ...)
-    else if (is.function(vectorized)) {
+    } else if (is.function(vectorized)) {
         f_vec = function(x, ...) vectorized(x, ...)
         if (is.null(f)) f = f_vec
-    } else if (isFALSE(vectorized) && !is.null(f))
+    } else if (isFALSE(vectorized) && !is.null(f)) {
         f_vec = Vectorize.function(f, dim = d)
-    else
+    } else if (is.character(vectorized) && !is.null(f)) { # arbitrary lapply-like function
+        f_vec = Vectorize.function(f, dim = d, .lapply = match.fun(vectorized))
+    } else
         stop("Cannot decide how to vectorize f")
 
-    f_0 <- function(...) return(f(...) - threshold)
-    f_vec_0 <- function(...) return(f_vec(...) - threshold)
+    # warning(paste0("[mesh_exsets] init: ",Sys.time() - .t0))
+    # .t0 <<- Sys.time()
+
+    k0 = 0#-1
+    f_0 <- function(...) return(f(...) - (threshold + k0*maxerror_f))
+    f_vec_0 <- function(...) return(f_vec(...) - (threshold + k0*maxerror_f))
     r <- roots_mesh(f = f_0, vectorized = f_vec_0, intervals = intervals,
-                    mesh.type = mesh.type, mesh.sizes = mesh.sizes, maxerror_f = maxerror_f,
-                    tol = tol, ...)
+                     mesh.type = mesh.type, mesh.sizes = mesh.sizes, maxerror_f = maxerror_f,
+                     tol = tol, num_workers=num_workers, ...)
 
-    if (all(is.na(r)))
-        all_points = attr(r, "mesh")$p
-    else
-        all_points = rbind(attr(r, "mesh")$p, r)
+    # warning(paste0("[mesh_exsets] roots_mesh: ",Sys.time() - .t0))
+    # .t0 <<- Sys.time()
 
-    if (maxerror_f != 0) { # try add points on each side of the frontier
-        f_inf <- function(...) return(f(...) - (threshold - maxerror_f))
-        f_vec_inf <- function(...) return(f_vec(...) - (threshold - maxerror_f))
-        r_inf <- roots_mesh(f = f_inf, vectorized = f_vec_inf, intervals = intervals,
-                            mesh.type = mesh.type, mesh.sizes = mesh.sizes, maxerror_f = maxerror_f,
-                            tol = tol, ...)
-        if (!all(is.na(r_inf)))
-            all_points = rbind(all_points, r_inf)
-
-        f_sup <- function(...) return(f(...) - (threshold + maxerror_f))
-        f_vec_sup <- function(...) return(f_vec(...) - (threshold + maxerror_f))
-        r_sup <- roots_mesh(f = f_sup, vectorized = f_vec_sup, intervals = intervals,
-                            mesh.type = mesh.type, mesh.sizes = mesh.sizes, maxerror_f = maxerror_f,
-                            tol = tol, ...)
-        if (!all(is.na(r_sup)))
-            all_points = rbind(all_points, r_sup)
-    }
+    all_points = attr(r, "mesh")$p
+    if (!all(is.na(r)))
+        all_points = rbind(all_points, r)
 
     new_mesh <- mesh(intervals, mesh.type = all_points)
 
-    new_mesh$y = f_vec(new_mesh$p, ...)
+    # warning(paste0("[mesh_exsets] mesh: ",Sys.time() - .t0))
+    # .t0 <<- Sys.time()
+
+    # identify points belonging to the excursion set
+    new_mesh$y = f_vec(new_mesh$p, ...) # re-evaluate f to get exact values (ie. close to frontier are 0.0 +/- maxrror_f)
+
+    # warning(paste0("[mesh_exsets] f_vec: ",Sys.time() - .t0))
+    # .t0 <<- Sys.time()
+
     I = which(apply(new_mesh$tri, 1,
-              function(i) ex_filter.tri(new_mesh$y[i] >= (threshold - 2 * maxerror_f))))
+                    function(i) ex_filter.tri(new_mesh$y[i] >= (threshold - 2*maxerror_f))))
+
+    # warning(paste0("[mesh_exsets] I: ",Sys.time() - .t0))
+    # .t0 <<- Sys.time()
+
+    # identify edges at the frontier: one point of the tri is outside, the other inside
+    d = ncol(new_mesh$p)
+    frontiers = matrix(NA, nrow = 0, ncol = d)
+    for (i in 1:nrow(new_mesh$tri)) {
+        tri = new_mesh$tri[i,]
+        outs = tri[ which(new_mesh$y[tri] <  (threshold - 2*maxerror_f))]
+        ins =  tri[ which(new_mesh$y[tri] >= (threshold - 2*maxerror_f))]
+        if (length(outs) == 1) {
+            if (d==1)
+                frontiers = rbind(frontiers, ins)
+            else
+                frontiers = rbind(frontiers, t(combn(ins, d)))
+        }
+    }
+    frontiers = unique(frontiers)
+
     colnames(new_mesh$p) <- colnames(intervals)
-    return(list(p = new_mesh$p, tri = new_mesh$tri[I, ], areas = new_mesh$areas[I],
-                neighbours = new_mesh$neighbours[I]))
+
+    return(list(p = new_mesh$p, y = new_mesh$y,
+                tri = new_mesh$tri[I, ],
+                all_tri = new_mesh$tri,
+                areas = new_mesh$areas[I],
+                all_areas = new_mesh$areas,
+                neighbours = new_mesh$neighbours[I],
+                frontiers = frontiers))
 }
 
 #### Plot meshes ####
@@ -124,8 +158,10 @@ mesh_exsets = function (f, vectorized = FALSE, threshold, sign, intervals,
 #' @import graphics
 #' @export
 #' @examples
-#' plot_mesh(mesh_exsets(function(x) x, threshold=.51, sign=1, intervals=rbind(0,1)))
-#' plot_mesh(mesh_exsets(function(x) (x-.5)^2, threshold=.1, sign=-1, intervals=rbind(0,1)))
+#' plot_mesh(mesh_exsets(function(x) x, threshold=.51, sign=1,
+#' intervals=rbind(0,1), num_workers=1))
+#' plot_mesh(mesh_exsets(function(x) (x-.5)^2, threshold=.1, sign=-1,
+#' intervals=rbind(0,1), num_workers=1))
 plot_mesh = function(mesh,y=0,color.nodes='black',color.mesh='darkgray',alpha=0.4, ...){
     nodes.rgb=col2rgb(color.nodes)/255
     p = plot(x=mesh$p,y=rep(y,length(mesh$p)),ylab="",col=rgb(nodes.rgb[1,],nodes.rgb[2,],nodes.rgb[3,],alpha),...)
@@ -149,7 +185,8 @@ plot_mesh = function(mesh,y=0,color.nodes='black',color.mesh='darkgray',alpha=0.
 #' @examples
 #' plot2d_mesh(mesh_exsets(f = function(x) sin(pi*x[1])*sin(pi*x[2]),
 #'                         threshold=0,sign=1, mesh.type="unif",mesh.size=11,
-#'                         intervals = matrix(c(1/2,5/2,1/2,5/2),nrow=2)))
+#'                         intervals = matrix(c(1/2,5/2,1/2,5/2),nrow=2),
+#'                         num_workers=1))
 plot2d_mesh = function(mesh,color.nodes='black',color.mesh='darkgray',alpha=0.4,...){
     nodes.rgb=col2rgb(color.nodes)/255
     p = plot(mesh$p,col=rgb(nodes.rgb[1,],nodes.rgb[2,],nodes.rgb[3,],alpha),...)
@@ -176,29 +213,31 @@ plot2d_mesh = function(mesh,color.nodes='black',color.mesh='darkgray',alpha=0.4,
 #'   plot3d_mesh(mesh_exsets(function(x) (0.5+x[1])^2+(-0.5+x[2])^2+(0.+x[3])^2,
 #'                           threshold = .25,sign=-1, mesh.type="unif",
 #'                           maxerror_f=1E-2,tol=1E-2, # faster display
-#'                           intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2)),
+#'                           intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2),
+#'                           num_workers=1),
 #'                           engine3d='scatterplot3d')
 #'
 #'   if (requireNamespace("rgl")) {
 #'     plot3d_mesh(mesh_exsets(function(x) (0.5+x[1])^2+(-0.5+x[2])^2+(0.+x[3])^2,
 #'                             threshold = .25,sign=-1, mesh.type="unif",
 #'                             maxerror_f=1E-2,tol=1E-2, # faster display
-#'                             intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2)),engine3d='rgl')
+#'                             intervals=matrix(c(-1,1,-1,1,-1,1),nrow=2),
+#'                             num_workers=1),engine3d='rgl')
 #'   }
 #' }
 plot3d_mesh = function(mesh,engine3d=NULL,color.nodes='black',color.mesh='darkgray',alpha=0.4,...){
     nodes.rgb=col2rgb(color.nodes)/255
-    package = load3d(engine3d)
+    package = .load3d(engine3d)
     if (is.null(package)) return()
-    p3d = plot3d(mesh$p,col=rgb(nodes.rgb[1,],nodes.rgb[2,],nodes.rgb[3,],alpha), package=package,...)
+    p3d = .plot3d(mesh$p,col=rgb(nodes.rgb[1,],nodes.rgb[2,],nodes.rgb[3,],alpha), package=package,...)
     mesh.rgb=col2rgb(color.mesh)/255
     apply(mesh$tri,1,function(tri) {
-        quads3d(mesh$p[tri,],col=rgb(mesh.rgb[1,],mesh.rgb[2,],mesh.rgb[3,]),alpha=alpha/10, package=package)
-        quads3d(mesh$p[tri,][c(4,3,2,1),],col=rgb(mesh.rgb[1,],mesh.rgb[2,],mesh.rgb[3,]),alpha=alpha/10, package=package)
-        # triangles3d(mesh$p[tri,][-1,],col=color,alpha=0.05, package=package)
-        # triangles3d(mesh$p[tri,][-2,],col=color,alpha=0.05, package=package)
-        # triangles3d(mesh$p[tri,][-3,],col=color,alpha=0.05, package=package)
-        # triangles3d(mesh$p[tri,][-4,],col=color,alpha=0.05, package=package)
+        .quads3d(mesh$p[tri,],col=rgb(mesh.rgb[1,],mesh.rgb[2,],mesh.rgb[3,]),alpha=alpha/10, package=package)
+        .quads3d(mesh$p[tri,][c(4,3,2,1),],col=rgb(mesh.rgb[1,],mesh.rgb[2,],mesh.rgb[3,]),alpha=alpha/10, package=package)
+        # .triangles3d(mesh$p[tri,][-1,],col=color,alpha=0.05, package=package)
+        # .triangles3d(mesh$p[tri,][-2,],col=color,alpha=0.05, package=package)
+        # .triangles3d(mesh$p[tri,][-3,],col=color,alpha=0.05, package=package)
+        # .triangles3d(mesh$p[tri,][-4,],col=color,alpha=0.05, package=package)
     }) #rgl::lines3d(mesh$p[t(combn(tri,2)),],col=color))
     invisible(p3d)
 }
@@ -315,10 +354,60 @@ is.mesh = function(x) {
     is.list(x) && all(c("p","tri") %in% names(x))
 }
 
+
+#' @title Compute distance between a point and a mesh
+#' @param p point to compute distance from
+#' @param mesh mesh to compute distance to
+#' @param norm vector of weights for each dimension (default: 1)
+#' @return distance between x and mesh
+#' @export
+#' @examples
+#'  x = matrix(0,ncol=2)
+#'  m = list(p = matrix(c(0,1,1,0,1,1),ncol=2,byrow=TRUE), tri = matrix(c(1,2,3),nrow=1))
+#'  plot2d_mesh(m)
+#'  points(x)
+#'  min = min_dist.mesh(x,m)
+#'  lines(rbind(x,attr(min,"proj")),col='red')
+#'
+#'  m = mesh_exsets(function(x) (0.25+x[1])^2+(0.5+x[2]/2)^2, vec=FALSE,
+#'                  1 ,1, intervals=rbind(cbind(0,0),cbind(1,1)), num_workers=1)
+#'  plot2d_mesh(m)
+#'  x = matrix(c(0.25,0.25),ncol=2)
+#'  points(x)
+#'  min = min_dist.mesh(x,m)
+#'  lines(rbind(x,attr(min,"proj")),col='red')
+min_dist.mesh = function(p,mesh, norm=rep(1,ncol(mesh$p))) {
+    dist2_to_p = function(x) sum(((p-x)/norm)^2)
+    dists = NULL
+    projs = NULL
+    dim = ncol(mesh$p)
+    for (i in 1:nrow(mesh$tri)) {
+        trip = mesh$p[mesh$tri[i,],,drop=F]
+        # find min dist bw p and tri, as a weighted barycenter of all points in the tri
+        o = optim(rep(1,dim+1), # not optimal: 1 df too much
+                  function(x) dist2_to_p((x/sum(x)) %*% trip),
+                  method="L-BFGS-B",
+                  lower=rep(1e-5,dim+1),upper=rep(1,dim+1)) # 1e-5: avoid 0 for sum(x)!=0, but that also excludes extreme points
+        # ...so also compare dist with the extreme points of the tri:
+        o$par = o$par/sum(o$par)
+        best_points = rbind((o$par/sum(o$par)) %*% trip, trip)
+        best_dists = sqrt(apply(best_points,1,dist2_to_p))
+        best_i = which.min(best_dists)
+
+        dists = c(dists, best_dists[best_i])
+        projs = rbind(projs, best_points[best_i,])
+    }
+    im = which.min(dists)
+    m = dists[im]
+    attr(m,"proj") <- projs[im,]
+    return(m)
+}
+
+
 #### Build mesh (on hypercube) ####
 
 #' @title Builds a mesh from a design aor set of points
-#' @param intervals bounds to inverse in, each column contains min and max of each dimension
+#' @param intervals bounds to inverse in, each column contains min and max (or values) of each dimension
 #' @param mesh.type function or "unif" or "seq" (default) or "LHS" to preform interval partition
 #' @param mesh.sizes number of parts for mesh (duplicate for each dimension if using "seq")
 #' @return delaunay mesh (list(p,tri,...) from geometry)
@@ -329,6 +418,8 @@ is.mesh = function(x) {
 mesh = function(intervals, mesh.type = "seq", mesh.sizes = 11) {
     # setup bounds & dim
     if (is.matrix(intervals)) {
+        if (nrow(intervals)!=2 && ncol(intervals)==2)
+            intervals = t(intervals)
         lowers = apply(intervals, 2, min)
         uppers = apply(intervals, 2, max)
         d = ncol(intervals)
@@ -369,12 +460,12 @@ mesh = function(intervals, mesh.type = "seq", mesh.sizes = 11) {
     } else stop("unsupported mesh setup : ", mesh.type)
 
     # add bounds
-    b = cbind(lowers[1], uppers[1])
+    b = rbind(lowers[1], uppers[1])
     if (d>1) for (id in 1:(d - 1)) { # efficient way for factorial design
-        b = rbind(cbind(b, lowers[id + 1]), cbind(b, uppers[id + 1]))
+        b = rbind(cbind(b, lowers[id + 1]),cbind(b, uppers[id + 1]))
     }
-    for (i in 1:nrow(b)) if (min_dist(b[i, ], ridge.points) > .Machine$double.eps)
-        ridge.points = rbind(ridge.points, b[i, ])
+    for (i in 1:nrow(b)) if (min_dist(b[i, ,drop=FALSE], ridge.points) > .Machine$double.eps)
+        ridge.points = rbind(ridge.points, b[i, ,drop=FALSE])
 
-    return( geometry::delaunayn(ridge.points, output.options = TRUE) )
+    return( geometry::delaunayn(ridge.points, output.options = "Fn Fa", options= "Qt Qc Qz QbB Qcc") )
 }

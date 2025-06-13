@@ -25,7 +25,6 @@
 \method{contourview}{`function`}(
   fun,
   vectorized = FALSE,
-  dim = NULL,
   center = NULL,
   lty_center = 2,
   col_center = "black",
@@ -33,15 +32,18 @@
   npoints = 21,
   levels = 10,
   lty_levels = 3,
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels - 1) else
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels - 1) else if
+    (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels - 1) else
     col.levels("blue", levels - 1),
   col = NULL,
   col_fading_interval = 0.5,
   mfrow = NULL,
   Xlab = NULL,
   ylab = NULL,
-  Xlim = NULL,
+  Xlim = if (!add) matrix(c(0, 1), 2, 2) else NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -59,8 +61,10 @@
   mfrow = NULL,
   Xlab = NULL,
   ylab = NULL,
-  Xlim = NULL,
+  Xlim = if (!add) matrix(c(0, 1), 2, 2) else NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -75,7 +79,8 @@
   npoints = 21,
   levels = pretty(km_model@y, 10),
   col_points = if (!is.null(col) & length(col) == 1) col else "red",
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else if
+    (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels - 1) else
     col.levels("blue", levels),
   col = NULL,
   conf_level = 0.5,
@@ -85,7 +90,9 @@
   Xlab = NULL,
   ylab = NULL,
   Xlim = NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -97,7 +104,8 @@
   npoints = 21,
   levels = pretty(Kriging_model$y(), 10),
   col_points = if (!is.null(col) & length(col) == 1) col else "red",
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else if
+    (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels - 1) else
     col.levels("blue", levels),
   col = NULL,
   conf_level = 0.5,
@@ -107,7 +115,9 @@
   Xlab = NULL,
   ylab = NULL,
   Xlim = NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -119,7 +129,8 @@
   npoints = 21,
   levels = pretty(NuggetKriging_model$y(), 10),
   col_points = if (!is.null(col) & length(col) == 1) col else "red",
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else if
+    (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels - 1) else
     col.levels("blue", levels),
   col = NULL,
   conf_level = 0.5,
@@ -129,7 +140,9 @@
   Xlab = NULL,
   ylab = NULL,
   Xlim = NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -141,7 +154,8 @@
   npoints = 21,
   levels = pretty(NoiseKriging_model$y(), 10),
   col_points = if (!is.null(col) & length(col) == 1) col else "red",
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else if
+    (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels - 1) else
     col.levels("blue", levels),
   col = NULL,
   conf_level = 0.5,
@@ -151,7 +165,9 @@
   Xlab = NULL,
   ylab = NULL,
   Xlim = NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -163,7 +179,8 @@
   npoints = 21,
   levels = pretty(glm_model$fitted.values, 10),
   col_points = if (!is.null(col) & length(col) == 1) col else "red",
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else if
+    (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels - 1) else
     col.levels("blue", levels),
   col = NULL,
   conf_level = 0.5,
@@ -173,7 +190,9 @@
   Xlab = NULL,
   ylab = NULL,
   Xlim = NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -185,7 +204,8 @@
   npoints = 21,
   levels = pretty(modelFit_model$data$Y, 10),
   col_points = if (!is.null(col) & length(col) == 1) col else "red",
-  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else
+  col_levels = if (!is.null(col) & length(col) == 1) col.levels(col, levels) else if
+    (!is.null(col) & length(col) == 2) cols.levels(col[1], col[2], levels - 1) else
     col.levels("blue", levels),
   col = NULL,
   bg_fading = 1,
@@ -193,7 +213,9 @@
   Xlab = NULL,
   ylab = NULL,
   Xlim = NULL,
+  ylim = NULL,
   title = NULL,
+  title_sep = " | ",
   add = FALSE,
   ...
 )
@@ -204,8 +226,6 @@ contourview(...)
 \item{fun}{a function or 'predict()'-like function that returns a simple numeric or mean and standard error: list(mean=...,se=...).}
 
 \item{vectorized}{is fun vectorized?}
-
-\item{dim}{input variables dimension of the model or function.}
 
 \item{center}{optional coordinates (as a list or data frame) of the center of the section view if the model's dimension is > 2.}
 
@@ -235,7 +255,11 @@ contourview(...)
 
 \item{Xlim}{an optional list to force x range for all plots. The default value \code{NULL} is automatically set to include all design points.}
 
+\item{ylim}{an optional list to force y range for all plots.}
+
 \item{title}{an optional overload of main title.}
+
+\item{title_sep}{customize subtitle with fixed input.}
 
 \item{add}{to print graphics on an existing window.}
 
@@ -283,15 +307,14 @@ y <- x1 + x2 + rnorm(15)
 model <- lm(y ~ x1 + x2)
 
 contourview(function(x) sum(x),
-                     dim=2, Xlim=cbind(range(x1),range(x2)), col='black')
+                     Xlim=cbind(range(x1),range(x2)), col='black')
 points(x1,x2)
 
 contourview(function(x) {
                       x = as.data.frame(x)
                       colnames(x) <- all.vars(model$call)[-1]
                       predict.lm(model, newdata=x, se.fit=FALSE)
-                    }, vectorized=TRUE, dim=2,
-              Xlim=cbind(range(x1),range(x2)), add=TRUE)
+                    }, vectorized=TRUE, add=TRUE)
 
 X = matrix(runif(15*2),ncol=2)
 y = apply(X,1,branin)
@@ -371,7 +394,7 @@ contourview(model)
 }
 
 ## A 2D example - Branin-Hoo function
-contourview(branin, dim=2, levels=30, col='black')
+contourview(branin, levels=30, col='black')
 
 \dontrun{
 ## a 16-points factorial design, and the corresponding response
@@ -384,26 +407,26 @@ if (requireNamespace("DiceKriging")) { library(DiceKriging)
 ## model: km
 model <- DiceKriging::km(design = design.fact, response = y)
 contourview(model, levels=30)
-contourview(branin, dim=2, levels=30, col='red', add=TRUE)
+contourview(branin, levels=30, col='red', add=TRUE)
 }
 
 if (requireNamespace("rlibkriging")) { library(rlibkriging)
 ## model: Kriging
 model <- Kriging(X = as.matrix(design.fact), y = as.matrix(y), kernel="matern3_2")
 contourview(model, levels=30)
-contourview(branin, dim=2, levels=30, col='red', add=TRUE)
+contourview(branin, levels=30, col='red', add=TRUE)
 }
 
 ## model: glm
 model <- glm(y ~ 1+ x1 + x2 + I(x1^2) + I(x2^2) + x1*x2, data=cbind(y,design.fact))
 contourview(model, levels=30)
-contourview(branin, dim=2, levels=30, col='red', add=TRUE)
+contourview(branin, levels=30, col='red', add=TRUE)
 
 if (requireNamespace("DiceEval")) { library(DiceEval)
 ## model: StepLinear
 model <- modelFit(design.fact, y, type = "StepLinear")
 contourview(model, levels=30)
-contourview(branin, dim=2, levels=30, col='red', add=TRUE)
+contourview(branin, levels=30, col='red', add=TRUE)
 }
 }
 
